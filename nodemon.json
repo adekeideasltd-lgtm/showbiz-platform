@@ -1,0 +1,6 @@
+{
+  "watch": ["app.js", "controllers", "middleware", "models", "routes", "utils", "migrations", "seeders"],
+  "ext": "js,json",
+  "ignore": ["node_modules", "*.test.js"],
+  "delay": 500
+}

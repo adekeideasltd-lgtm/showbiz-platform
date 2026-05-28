@@ -29,6 +29,11 @@ router.put('/models/me/photos/:photoId/primary',  authenticate, requireRole('mod
 router.post('/admin/photos/:photoId/approve',     authenticate, checkPermission('models.approve'),    uploadCtrl.adminApprovePhoto);
 router.delete('/admin/photos/:photoId',           authenticate, checkPermission('models.delete'),     uploadCtrl.adminDeletePhoto);
 
+// ── EMAIL VERIFICATION ROUTES (public) ───────────────────────────────────────
+const verifyCtrl = require('../controllers/auth.verify.controller');
+router.get('/auth/verify-email',          verifyCtrl.verifyEmail);
+router.post('/auth/resend-verification',  verifyCtrl.resendVerification);
+
 // ── FORGOT PASSWORD ROUTES (public) ──────────────────────────────────────────
 const forgotCtrl = require('../controllers/auth.forgot.controller');
 router.post('/auth/forgot-password',        strictAuthLimiter, forgotCtrl.forgotPassword);

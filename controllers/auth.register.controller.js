@@ -1,6 +1,7 @@
 'use strict';
 
 const notify = require('../utils/email/notifications');
+const { sendVerificationEmail } = require('./auth.verify.controller');
 
 const bcrypt         = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
@@ -108,7 +109,9 @@ const register = async (req, res) => {
     await t.commit();
     try {
       if (role === 'model')         notify.onModelRegistered(user).catch(console.error);
+      sendVerificationEmail(user).catch(console.error);
       if (role === 'showbiz_owner') notify.onOwnerRegistered(user).catch(console.error);
+      sendVerificationEmail(user).catch(console.error);
     } catch (_) {}
     return res.status(201).json({
       status: 'success',
