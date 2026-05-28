@@ -19,6 +19,9 @@ const {
 // Global API rate limit
 router.use(apiLimiter);
 
+// ── PUBLIC ROUTES (no auth) ───────────────────────────────────────────────────
+router.get('/models/public', modelCtrl.listModels);
+
 // ── AVAILABILITY ROUTES ──────────────────────────────────────────────────────
 const availCtrl = require('../controllers/availability.controller');
 router.get('/models/me/availability',      authenticate, requireRole('model'), availCtrl.getMyAvailability);
