@@ -19,6 +19,13 @@ const {
 // Global API rate limit
 router.use(apiLimiter);
 
+// ── AVAILABILITY ROUTES ──────────────────────────────────────────────────────
+const availCtrl = require('../controllers/availability.controller');
+router.get('/models/me/availability',      authenticate, requireRole('model'), availCtrl.getMyAvailability);
+router.post('/models/me/availability',     authenticate, requireRole('model'), availCtrl.setAvailability);
+router.delete('/models/me/availability',   authenticate, requireRole('model'), availCtrl.clearAvailability);
+router.get('/models/:id/availability',     availCtrl.getAvailability);
+
 // ── UPLOAD ROUTES ────────────────────────────────────────────────────────────
 const uploadCtrl = require('../controllers/upload.controller');
 
@@ -156,14 +163,12 @@ const modelCtrl = require('../controllers/model.controller');
 // Public
 router.get('/models',                       modelCtrl.listModels);
 router.get('/models/:id',                   modelCtrl.getModel);
-router.get('/models/:id/availability',      modelCtrl.getAvailability);
 
 // Model (own profile)
 router.get('/models/me/profile',            authenticate, requireRole('model'), modelCtrl.getMyProfile);
 router.put('/models/me/profile',            authenticate, requireRole('model'), modelCtrl.updateMyProfile);
 router.post('/models/me/photos',            authenticate, requireRole('model'), modelCtrl.addPhoto);
 router.delete('/models/me/photos/:photoId', authenticate, requireRole('model'), modelCtrl.deletePhoto);
-router.post('/models/me/availability',      authenticate, requireRole('model'), modelCtrl.setAvailability);
 
 // Admin
 router.get('/admin/models',                         authenticate, checkPermission('models.view'),    modelCtrl.adminListModels);
