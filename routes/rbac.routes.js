@@ -26,6 +26,16 @@ router.post('/models/me/availability',     authenticate, requireRole('model'), a
 router.delete('/models/me/availability',   authenticate, requireRole('model'), availCtrl.clearAvailability);
 router.get('/models/:id/availability',     availCtrl.getAvailability);
 
+
+// ── KYC ROUTES ────────────────────────────────────────────────────────────────
+const kycCtrl = require('../controllers/kyc.controller');
+router.get('/kyc/me',                    authenticate, kycCtrl.getMyKYC);
+router.post('/kyc/submit',               authenticate, kycCtrl.submitKYC);
+router.get('/admin/kyc',                 authenticate, checkPermission('users.manage'), kycCtrl.adminListKYC);
+router.get('/admin/kyc/:id',             authenticate, checkPermission('users.manage'), kycCtrl.adminGetKYC);
+router.post('/admin/kyc/:id/approve',    authenticate, checkPermission('users.manage'), kycCtrl.adminApproveKYC);
+router.post('/admin/kyc/:id/reject',     authenticate, checkPermission('users.manage'), kycCtrl.adminRejectKYC);
+
 // ── UPLOAD ROUTES ────────────────────────────────────────────────────────────
 const uploadCtrl = require('../controllers/upload.controller');
 

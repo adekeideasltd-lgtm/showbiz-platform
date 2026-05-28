@@ -282,4 +282,40 @@ const PasswordReset = sequelize.define('PasswordReset', {
 PasswordReset.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(PasswordReset,   { foreignKey: 'user_id', as: 'passwordResets' });
 
-module.exports = { sequelize, Sequelize, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+
+// ── KYC Verification ─────────────────────────────────────────────────────────
+const KYCVerification = sequelize.define('KYCVerification', {
+  id:                       { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:                  { type: DataTypes.UUID, allowNull: false },
+  role:                     { type: DataTypes.ENUM('model', 'showbiz_owner') },
+  status:                   { type: DataTypes.ENUM('pending', 'under_review', 'approved', 'rejected'), defaultValue: 'pending' },
+  full_legal_name:          { type: DataTypes.STRING(200) },
+  date_of_birth:            { type: DataTypes.DATEONLY },
+  phone_number:             { type: DataTypes.STRING(20) },
+  address:                  { type: DataTypes.TEXT },
+  state:                    { type: DataTypes.STRING(100) },
+  nin_number:               { type: DataTypes.STRING(50) },
+  nin_doc_url:              { type: DataTypes.STRING(500) },
+  nin_doc_public_id:        { type: DataTypes.STRING(500) },
+  gov_id_type:              { type: DataTypes.STRING(50) },
+  gov_id_url:               { type: DataTypes.STRING(500) },
+  gov_id_public_id:         { type: DataTypes.STRING(500) },
+  proof_of_address_url:     { type: DataTypes.STRING(500) },
+  proof_of_address_public_id: { type: DataTypes.STRING(500) },
+  selfie_url:               { type: DataTypes.STRING(500) },
+  selfie_public_id:         { type: DataTypes.STRING(500) },
+  business_name:            { type: DataTypes.STRING(200) },
+  cac_number:               { type: DataTypes.STRING(100) },
+  cac_doc_url:              { type: DataTypes.STRING(500) },
+  cac_doc_public_id:        { type: DataTypes.STRING(500) },
+  reviewed_by:              { type: DataTypes.UUID },
+  reviewed_at:              { type: DataTypes.DATE },
+  rejection_reason:         { type: DataTypes.TEXT },
+  admin_notes:              { type: DataTypes.TEXT },
+  submitted_at:             { type: DataTypes.DATE },
+}, { tableName: 'kyc_verifications', underscored: true });
+
+User.hasOne(KYCVerification, { foreignKey: 'user_id', as: 'kyc' });
+KYCVerification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+module.exports = { sequelize, Sequelize, KYCVerification, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };

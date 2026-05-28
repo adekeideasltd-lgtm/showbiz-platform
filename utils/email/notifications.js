@@ -50,6 +50,93 @@ const onPayoutProcessed = async (payout, model) => {
   await sendEmail({ to: model.email, ...templates.payoutProcessed({ modelName: model.first_name, payout }) });
 };
 
+// placeholder - exports at bottom
+
+// ── KYC Notifications ─────────────────────────────────────────────────────────
+const onKYCSubmitted = async (user) => {
+  // Notify admin
+  await sendEmail({
+    to: process.env.SUPER_ADMIN_EMAIL,
+    subject: 'New KYC Submission — ' + user.first_name + ' ' + user.last_name,
+    html: baseTemplate('New KYC Submission', `
+      <p>A new KYC verification has been submitted and requires your review.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Name</td><td style="padding:8px;font-weight:600;">${user.first_name} ${user.last_name}</td></tr>
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Email</td><td style="padding:8px;">${user.email}</td></tr>
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Submitted</td><td style="padding:8px;">${new Date().toLocaleString()}</td></tr>
+      </table>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${process.env.FRONTEND_URL}/admin/kyc" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Review KYC</a>
+      </div>
+    `),
+  });
+
+  // Notify user
+  await sendEmail({
+    to: user.email,
+    subject: 'KYC Submitted — Showbiz Platform',
+    html: baseTemplate('KYC Submitted Successfully', `
+      <p>Hi ${user.first_name},</p>
+      <p>Your KYC verification documents have been received. Our team will review them within <strong>24-48 hours</strong>.</p>
+      <p>You will receive an email once your verification is complete.</p>
+      <div style="background:#1A1A26;border:1px solid #2E2E42;border-radius:8px;padding:16px;margin:16px 0;">
+        <p style="font-size:13px;color:#8884A0;margin:0;">What happens next?</p>
+        <ul style="color:#F0EEF8;font-size:14px;line-height:1.8;margin:8px 0 0;">
+          <li>Our team reviews your documents</li>
+          <li>You receive an approval or rejection email</li>
+          <li>Upon approval, you get full platform access</li>
+        </ul>
+      </div>
+    `),
+  });
+};
+
+const onKYCApproved = async (user) => {
+  await sendEmail({
+    to: user.email,
+    subject: '✅ KYC Approved — You are now verified on Showbiz!',
+    html: baseTemplate('KYC Verification Approved!', `
+      <p>Hi ${user.first_name},</p>
+      <p style="font-size:16px;color:#2ECC8A;font-weight:700;">🎉 Congratulations! Your identity has been verified.</p>
+      <p>You now have full access to all Showbiz Platform features including:</p>
+      <ul style="color:#F0EEF8;font-size:14px;line-height:1.8;">
+        <li>✓ Browse and book professional models</li>
+        <li>✓ Receive and accept booking requests</li>
+        <li>✓ Process and receive payments</li>
+        <li>✓ Display a verified badge on your profile</li>
+      </ul>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${process.env.FRONTEND_URL}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Go to Dashboard</a>
+      </div>
+    `),
+  });
+};
+
+const onKYCRejected = async (user, reason) => {
+  await sendEmail({
+    to: user.email,
+    subject: 'KYC Verification Update — Action Required',
+    html: baseTemplate('KYC Verification Unsuccessful', `
+      <p>Hi ${user.first_name},</p>
+      <p>Unfortunately, we were unable to verify your identity with the documents submitted.</p>
+      <div style="background:#2D1515;border:1px solid rgba(232,92,92,0.3);border-radius:8px;padding:16px;margin:16px 0;">
+        <p style="font-size:12px;color:#E85C5C;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Reason</p>
+        <p style="color:#F0EEF8;font-size:14px;margin:0;">${reason}</p>
+      </div>
+      <p style="font-size:14px;color:#8884A0;">Please resubmit your KYC with the correct documents. Common issues include:</p>
+      <ul style="color:#8884A0;font-size:13px;line-height:1.8;">
+        <li>Documents are blurry or unreadable</li>
+        <li>Expired ID documents</li>
+        <li>Selfie does not clearly match the ID</li>
+        <li>Documents are more than 3 months old</li>
+      </ul>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${process.env.FRONTEND_URL}/model/kyc" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Resubmit KYC</a>
+      </div>
+    `),
+  });
+};
+
 module.exports = {
   onModelRegistered, onOwnerRegistered,
   onModelApproved, onModelRejected,
@@ -57,4 +144,5 @@ module.exports = {
   onBookingCreated, onBookingApprovedByAdmin,
   onBookingConfirmedByModel, onBookingDeclinedByModel,
   onPaymentSuccess, onPayoutProcessed,
+  onKYCSubmitted, onKYCApproved, onKYCRejected,
 };

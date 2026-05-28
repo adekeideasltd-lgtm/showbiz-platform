@@ -70,9 +70,9 @@ const listModels = async (req, res) => {
 const getModel = async (req, res) => {
   try {
     const profile = await db.ModelProfile.findOne({
-      where: { id: req.params.id, status: 'approved' },
+      where: { id: req.params.id },
       include: [
-        { model: db.User, as: 'user', attributes: ['id', 'first_name', 'last_name'] },
+        { model: db.User, as: 'user', attributes: ['id', 'first_name', 'last_name', 'kyc_verified'] },
         { model: db.ModelPhoto, as: 'photos', where: { is_approved: true }, required: false },
       ],
     });
