@@ -1,0 +1,285 @@
+'use strict';
+
+const { Sequelize, DataTypes } = require('sequelize');
+require('dotenv').config();
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASS,
+  {
+    host:    process.env.DB_HOST,
+    port:    process.env.DB_PORT || 5432,
+    dialect: 'postgres',
+    logging: false,
+  }
+);
+
+const Role = sequelize.define('Role', {
+  id:           { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  name:         { type: DataTypes.STRING(100), allowNull: false, unique: true },
+  display_name: { type: DataTypes.STRING(150), allowNull: false },
+  description:  { type: DataTypes.TEXT },
+  guard_name:   { type: DataTypes.STRING(50), defaultValue: 'api' },
+  is_system:    { type: DataTypes.BOOLEAN, defaultValue: false },
+  is_active:    { type: DataTypes.BOOLEAN, defaultValue: true },
+  created_by:   { type: DataTypes.UUID },
+}, { tableName: 'roles', underscored: true });
+
+const Permission = sequelize.define('Permission', {
+  id:           { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  name:         { type: DataTypes.STRING(150), allowNull: false, unique: true },
+  display_name: { type: DataTypes.STRING(200), allowNull: false },
+  module:       { type: DataTypes.STRING(100), allowNull: false },
+  action:       { type: DataTypes.ENUM('view','create','edit','delete','approve','export','manage'), allowNull: false },
+  description:  { type: DataTypes.TEXT },
+  guard_name:   { type: DataTypes.STRING(50), defaultValue: 'api' },
+}, { tableName: 'permissions', underscored: true });
+
+const User = sequelize.define('User', {
+  id:                   { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  email:                { type: DataTypes.STRING(255), allowNull: false, unique: true },
+  password_hash:        { type: DataTypes.STRING(255), allowNull: false },
+  first_name:           { type: DataTypes.STRING(100), allowNull: false },
+  last_name:            { type: DataTypes.STRING(100), allowNull: false },
+  is_active:            { type: DataTypes.BOOLEAN, defaultValue: true },
+  is_suspended:         { type: DataTypes.BOOLEAN, defaultValue: false },
+  suspended_reason:     { type: DataTypes.TEXT },
+  suspended_by:         { type: DataTypes.UUID },
+  two_fa_enabled:       { type: DataTypes.BOOLEAN, defaultValue: false },
+  two_fa_secret:        { type: DataTypes.STRING(255) },
+  last_login_at:        { type: DataTypes.DATE },
+  last_login_ip:        { type: DataTypes.STRING(45) },
+  force_password_reset: { type: DataTypes.BOOLEAN, defaultValue: false },
+}, { tableName: 'users', underscored: true });
+
+const UserRole = sequelize.define('UserRole', {
+  id:          { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:     { type: DataTypes.UUID, allowNull: false },
+  role_id:     { type: DataTypes.UUID, allowNull: false },
+  assigned_by: { type: DataTypes.UUID },
+  expires_at:  { type: DataTypes.DATE },
+}, { tableName: 'user_roles', underscored: true, updatedAt: false });
+
+const AuditLog = sequelize.define('AuditLog', {
+  id:          { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  actor_id:    { type: DataTypes.UUID, allowNull: false },
+  actor_role:  { type: DataTypes.STRING(100), allowNull: false },
+  action:      { type: DataTypes.STRING(100), allowNull: false },
+  entity_type: { type: DataTypes.STRING(100), allowNull: false },
+  entity_id:   { type: DataTypes.UUID },
+  old_value:   { type: DataTypes.JSONB },
+  new_value:   { type: DataTypes.JSONB },
+  ip_address:  { type: DataTypes.STRING(45) },
+  user_agent:  { type: DataTypes.TEXT },
+}, { tableName: 'audit_logs', underscored: true, updatedAt: false });
+
+const RoleAssignmentHistory = sequelize.define('RoleAssignmentHistory', {
+  id:           { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:      { type: DataTypes.UUID, allowNull: false },
+  role_id:      { type: DataTypes.UUID, allowNull: false },
+  action:       { type: DataTypes.ENUM('assigned','revoked'), allowNull: false },
+  performed_by: { type: DataTypes.UUID, allowNull: false },
+  reason:       { type: DataTypes.TEXT },
+}, { tableName: 'role_assignment_history', underscored: true, updatedAt: false });
+
+// Associations
+Role.belongsToMany(Permission, { through: 'role_permissions', as: 'permissions', foreignKey: 'role_id',    otherKey: 'permission_id' });
+Permission.belongsToMany(Role, { through: 'role_permissions', as: 'roles',       foreignKey: 'permission_id', otherKey: 'role_id' });
+User.belongsToMany(Role,       { through: UserRole,           as: 'roles',       foreignKey: 'user_id',    otherKey: 'role_id' });
+Role.belongsToMany(User,       { through: UserRole,           as: 'users',       foreignKey: 'role_id',    otherKey: 'user_id' });
+
+
+const ModelProfile = sequelize.define('ModelProfile', {
+  id:              { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:         { type: DataTypes.UUID, allowNull: false },
+  status:          { type: DataTypes.ENUM('pending','approved','rejected'), defaultValue: 'pending' },
+  bio:             { type: DataTypes.TEXT },
+  phone:           { type: DataTypes.STRING(20) },
+  country:         { type: DataTypes.STRING(100) },
+  state:           { type: DataTypes.STRING(100) },
+  city:            { type: DataTypes.STRING(100) },
+  height_cm:       { type: DataTypes.INTEGER },
+  weight_kg:       { type: DataTypes.DECIMAL(5,2) },
+  skin_tone:       { type: DataTypes.STRING(50) },
+  gender:          { type: DataTypes.ENUM('male','female','non_binary','prefer_not_to_say') },
+  experience:      { type: DataTypes.ENUM('beginner','intermediate','professional') },
+  languages:       { type: DataTypes.ARRAY(DataTypes.STRING) },
+  specialties:     { type: DataTypes.ARRAY(DataTypes.STRING) },
+  hobbies:         { type: DataTypes.TEXT },
+  hourly_rate:     { type: DataTypes.DECIMAL(10,2) },
+  daily_rate:      { type: DataTypes.DECIMAL(10,2) },
+  is_featured:     { type: DataTypes.BOOLEAN, defaultValue: false },
+  approved_by:     { type: DataTypes.UUID },
+  approved_at:     { type: DataTypes.DATE },
+  rejected_reason: { type: DataTypes.TEXT },
+}, { tableName: 'model_profiles', underscored: true });
+
+const ShowbizProfile = sequelize.define('ShowbizProfile', {
+  id:            { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:       { type: DataTypes.UUID, allowNull: false },
+  company_name:  { type: DataTypes.STRING(200) },
+  business_type: { type: DataTypes.STRING(100) },
+  phone:         { type: DataTypes.STRING(20) },
+  country:       { type: DataTypes.STRING(100) },
+  state:         { type: DataTypes.STRING(100) },
+  city:          { type: DataTypes.STRING(100) },
+  website:       { type: DataTypes.STRING(255) },
+  bio:           { type: DataTypes.TEXT },
+}, { tableName: 'showbiz_profiles', underscored: true });
+
+User.hasOne(ModelProfile,   { foreignKey: 'user_id', as: 'modelProfile' });
+User.hasOne(ShowbizProfile, { foreignKey: 'user_id', as: 'showbizProfile' });
+ModelProfile.belongsTo(User,   { foreignKey: 'user_id', as: 'user' });
+ShowbizProfile.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+
+const ModelPhoto = sequelize.define('ModelPhoto', {
+  id:          { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  model_id:    { type: DataTypes.UUID, allowNull: false },
+  url:         { type: DataTypes.STRING(500), allowNull: false },
+  public_id:   { type: DataTypes.STRING(255) },
+  is_primary:  { type: DataTypes.BOOLEAN, defaultValue: false },
+  is_approved: { type: DataTypes.BOOLEAN, defaultValue: false },
+  caption:     { type: DataTypes.STRING(255) },
+}, { tableName: 'model_photos', underscored: true });
+
+const ModelAvailability = sequelize.define('ModelAvailability', {
+  id:           { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  model_id:     { type: DataTypes.UUID, allowNull: false },
+  date:         { type: DataTypes.DATEONLY, allowNull: false },
+  is_available: { type: DataTypes.BOOLEAN, defaultValue: true },
+  note:         { type: DataTypes.STRING(255) },
+}, { tableName: 'model_availability', underscored: true });
+
+ModelProfile.hasMany(ModelPhoto,        { foreignKey: 'model_id', as: 'photos' });
+ModelProfile.hasMany(ModelAvailability, { foreignKey: 'model_id', as: 'availability' });
+ModelPhoto.belongsTo(ModelProfile,        { foreignKey: 'model_id', as: 'model' });
+ModelAvailability.belongsTo(ModelProfile, { foreignKey: 'model_id', as: 'model' });
+
+
+const Booking = sequelize.define('Booking', {
+  id:             { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  owner_id:       { type: DataTypes.UUID, allowNull: false },
+  model_id:       { type: DataTypes.UUID, allowNull: false },
+  event_title:    { type: DataTypes.STRING(200), allowNull: false },
+  event_type:     { type: DataTypes.STRING(100) },
+  event_date:     { type: DataTypes.DATEONLY, allowNull: false },
+  event_end_date: { type: DataTypes.DATEONLY },
+  event_location: { type: DataTypes.STRING(255) },
+  event_details:  { type: DataTypes.TEXT },
+  duration_hours: { type: DataTypes.DECIMAL(5,2) },
+  agreed_rate:    { type: DataTypes.DECIMAL(10,2) },
+  total_amount:   { type: DataTypes.DECIMAL(10,2) },
+  status: {
+    type: DataTypes.ENUM('pending','admin_review','model_review','confirmed','rejected_by_admin','rejected_by_model','cancelled','completed'),
+    defaultValue: 'pending',
+  },
+  rejection_reason:  { type: DataTypes.TEXT },
+  admin_notes:       { type: DataTypes.TEXT },
+  reviewed_by_admin: { type: DataTypes.UUID },
+  reviewed_at_admin: { type: DataTypes.DATE },
+  model_response_at: { type: DataTypes.DATE },
+  completed_at:      { type: DataTypes.DATE },
+}, { tableName: 'bookings', underscored: true });
+
+const BookingStatusHistory = sequelize.define('BookingStatusHistory', {
+  id:          { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  booking_id:  { type: DataTypes.UUID, allowNull: false },
+  from_status: { type: DataTypes.STRING(50) },
+  to_status:   { type: DataTypes.STRING(50), allowNull: false },
+  changed_by:  { type: DataTypes.UUID, allowNull: false },
+  note:        { type: DataTypes.TEXT },
+}, { tableName: 'booking_status_history', underscored: true, updatedAt: false });
+
+Booking.belongsTo(User,         { foreignKey: 'owner_id', as: 'owner' });
+Booking.belongsTo(ModelProfile, { foreignKey: 'model_id', as: 'model' });
+User.hasMany(Booking,           { foreignKey: 'owner_id', as: 'bookings' });
+ModelProfile.hasMany(Booking,   { foreignKey: 'model_id', as: 'bookings' });
+Booking.hasMany(BookingStatusHistory, { foreignKey: 'booking_id', as: 'statusHistory' });
+BookingStatusHistory.belongsTo(Booking, { foreignKey: 'booking_id' });
+
+
+const Payment = sequelize.define('Payment', {
+  id:                   { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  booking_id:           { type: DataTypes.UUID, allowNull: false },
+  payer_id:             { type: DataTypes.UUID, allowNull: false },
+  amount:               { type: DataTypes.DECIMAL(10,2), allowNull: false },
+  commission_rate:      { type: DataTypes.DECIMAL(5,2), defaultValue: 10.00 },
+  commission_amount:    { type: DataTypes.DECIMAL(10,2) },
+  model_payout:         { type: DataTypes.DECIMAL(10,2) },
+  currency:             { type: DataTypes.STRING(10), defaultValue: 'NGN' },
+  status:               { type: DataTypes.ENUM('pending','success','failed','refunded'), defaultValue: 'pending' },
+  payment_method:       { type: DataTypes.STRING(50) },
+  provider:             { type: DataTypes.STRING(50), defaultValue: 'paystack' },
+  provider_reference:   { type: DataTypes.STRING(255) },
+  provider_access_code: { type: DataTypes.STRING(255) },
+  authorization_url:    { type: DataTypes.STRING(500) },
+  paid_at:              { type: DataTypes.DATE },
+  refunded_at:          { type: DataTypes.DATE },
+  refund_reason:        { type: DataTypes.TEXT },
+  metadata:             { type: DataTypes.JSONB },
+}, { tableName: 'payments', underscored: true });
+
+const Payout = sequelize.define('Payout', {
+  id:             { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  payment_id:     { type: DataTypes.UUID, allowNull: false },
+  model_id:       { type: DataTypes.UUID, allowNull: false },
+  amount:         { type: DataTypes.DECIMAL(10,2), allowNull: false },
+  status:         { type: DataTypes.ENUM('pending','processing','completed','failed'), defaultValue: 'pending' },
+  bank_name:      { type: DataTypes.STRING(100) },
+  account_number: { type: DataTypes.STRING(20) },
+  account_name:   { type: DataTypes.STRING(200) },
+  transfer_code:  { type: DataTypes.STRING(255) },
+  processed_by:   { type: DataTypes.UUID },
+  processed_at:   { type: DataTypes.DATE },
+  notes:          { type: DataTypes.TEXT },
+}, { tableName: 'payouts', underscored: true });
+
+Payment.belongsTo(Booking, { foreignKey: 'booking_id', as: 'booking' });
+Payment.belongsTo(User,    { foreignKey: 'payer_id',   as: 'payer' });
+Booking.hasOne(Payment,    { foreignKey: 'booking_id', as: 'payment' });
+Payout.belongsTo(Payment,  { foreignKey: 'payment_id', as: 'payment' });
+Payment.hasOne(Payout,     { foreignKey: 'payment_id', as: 'payout' });
+
+
+const Conversation = sequelize.define('Conversation', {
+  id:               { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  booking_id:       { type: DataTypes.UUID },
+  participant_id:   { type: DataTypes.UUID, allowNull: false },
+  participant_role: { type: DataTypes.STRING(50), allowNull: false },
+  subject:          { type: DataTypes.STRING(255) },
+  status:           { type: DataTypes.ENUM('open','closed'), defaultValue: 'open' },
+  last_message_at:  { type: DataTypes.DATE },
+}, { tableName: 'conversations', underscored: true });
+
+const Message = sequelize.define('Message', {
+  id:              { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  conversation_id: { type: DataTypes.UUID, allowNull: false },
+  sender_id:       { type: DataTypes.UUID, allowNull: false },
+  sender_role:     { type: DataTypes.STRING(50), allowNull: false },
+  body:            { type: DataTypes.TEXT, allowNull: false },
+  is_read:         { type: DataTypes.BOOLEAN, defaultValue: false },
+  read_at:         { type: DataTypes.DATE },
+}, { tableName: 'messages', underscored: true });
+
+Conversation.belongsTo(User,    { foreignKey: 'participant_id', as: 'participant' });
+Conversation.hasMany(Message,   { foreignKey: 'conversation_id', as: 'messages' });
+Message.belongsTo(Conversation, { foreignKey: 'conversation_id', as: 'conversation' });
+Message.belongsTo(User,         { foreignKey: 'sender_id', as: 'sender' });
+
+
+const PasswordReset = sequelize.define('PasswordReset', {
+  id:         { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:    { type: DataTypes.UUID, allowNull: false },
+  token:      { type: DataTypes.STRING(255), allowNull: false, unique: true },
+  token_hash: { type: DataTypes.STRING(255), allowNull: false },
+  expires_at: { type: DataTypes.DATE, allowNull: false },
+  used_at:    { type: DataTypes.DATE, allowNull: true },
+  ip_address: { type: DataTypes.STRING(45), allowNull: true },
+}, { tableName: 'password_resets', underscored: true });
+
+PasswordReset.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(PasswordReset,   { foreignKey: 'user_id', as: 'passwordResets' });
+
+module.exports = { sequelize, Sequelize, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
