@@ -19,9 +19,6 @@ const {
 // Global API rate limit
 router.use(apiLimiter);
 
-// ── PUBLIC ROUTES (no auth) ───────────────────────────────────────────────────
-router.get('/models/public', modelCtrl.listModels);
-
 // ── AVAILABILITY ROUTES ──────────────────────────────────────────────────────
 const availCtrl = require('../controllers/availability.controller');
 router.get('/models/me/availability',      authenticate, requireRole('model'), availCtrl.getMyAvailability);
@@ -159,6 +156,10 @@ router.get('/admin/bookings',                  authenticate, checkPermission('bo
 router.post('/admin/bookings/:id/approve',     authenticate, checkPermission('bookings.approve'), bookingCtrl.adminApproveBooking);
 router.post('/admin/bookings/:id/reject',      authenticate, checkPermission('bookings.approve'), bookingCtrl.adminRejectBooking);
 router.post('/admin/bookings/:id/complete',    authenticate, checkPermission('bookings.edit'),    bookingCtrl.completeBooking);
+
+// ── PUBLIC ROUTES (no auth) ───────────────────────────────────────────────────
+const modelCtrlPublic = require('../controllers/model.controller');
+router.get('/models/public', modelCtrlPublic.listModels);
 
 // ── MODEL ROUTES ──────────────────────────────────────────────────────────────
 const modelCtrl = require('../controllers/model.controller');
