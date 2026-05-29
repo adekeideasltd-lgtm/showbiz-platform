@@ -171,6 +171,27 @@ const onContactForm = async ({ name, email, subject, message }) => {
   });
 };
 
+const onReportReplied = async (user, report, reply) => {
+  await sendEmail({
+    to: user.email,
+    subject: 'Your Report Has Been Addressed — Showbiz Platform',
+    html: baseTemplate('Update on Your Report', `
+      <p>Hi ${user.first_name},</p>
+      <p>Our team has reviewed your ${report.type} and provided a response.</p>
+      <div style="background:#1A1A26;border:1px solid #2E2E42;border-radius:8px;padding:16px;margin:16px 0;">
+        <p style="font-size:12px;color:#8884A0;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Your ${report.type}</p>
+        <p style="color:#F0EEF8;font-size:14px;margin:0 0 12px;">${report.subject}</p>
+        <p style="font-size:12px;color:#8884A0;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Admin Response</p>
+        <p style="color:#C9A84C;font-size:14px;line-height:1.7;margin:0;">${reply}</p>
+      </div>
+      <p style="color:#8884A0;font-size:13px;">Status: <strong style="color:#2ECC8A;">${report.status}</strong></p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${process.env.FRONTEND_URL}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Go to Dashboard</a>
+      </div>
+    `),
+  });
+};
+
 module.exports = {
   onModelRegistered, onOwnerRegistered,
   onModelApproved, onModelRejected,
@@ -180,4 +201,5 @@ module.exports = {
   onPaymentSuccess, onPayoutProcessed,
   onKYCSubmitted, onKYCApproved, onKYCRejected,
   onContactForm,
+  onReportReplied,
 };

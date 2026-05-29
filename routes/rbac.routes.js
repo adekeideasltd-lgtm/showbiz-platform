@@ -67,6 +67,17 @@ router.get('/auth/check-email',   registerCtrl.checkEmail);
 // ── PUBLIC CONTACT FORM ───────────────────────────────────────────────────────
 const contactCtrl = require('../controllers/contact.controller');
 router.post('/contact', contactCtrl.submitContact);
+
+// ── REPORT & FEEDBACK ROUTES ──────────────────────────────────────────────────
+const reportCtrl = require('../controllers/report.controller');
+router.post('/reports',              authenticate, reportCtrl.createReport);
+router.get('/reports/me',            authenticate, reportCtrl.getMyReports);
+router.get('/reports/:id',           authenticate, reportCtrl.getReport);
+router.get('/admin/reports',         authenticate, checkPermission('users.manage'), reportCtrl.adminListReports);
+router.get('/admin/reports/:id',     authenticate, checkPermission('users.manage'), reportCtrl.adminGetReport);
+router.post('/admin/reports/:id/reply',  authenticate, checkPermission('users.manage'), reportCtrl.adminReplyReport);
+router.put('/admin/reports/:id/status',  authenticate, checkPermission('users.manage'), reportCtrl.adminUpdateStatus);
+
 // ── ADMIN CONTACT ROUTES ─────────────────────────────────────────────────────
 router.get('/admin/contact',        authenticate, checkPermission('users.manage'), contactCtrl.listContacts);
 router.get('/admin/contact/:id',    authenticate, checkPermission('users.manage'), contactCtrl.getContact);

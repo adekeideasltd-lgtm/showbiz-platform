@@ -344,4 +344,27 @@ const ContactSubmission = sequelize.define('ContactSubmission', {
   ip_address: { type: DataTypes.STRING(100) },
 }, { tableName: 'contact_submissions', underscored: true });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Reports & Feedback ────────────────────────────────────────────────────────
+const Report = sequelize.define('Report', {
+  id:           { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:      { type: DataTypes.UUID, allowNull: false },
+  type:         { type: DataTypes.ENUM('report', 'feedback', 'complaint', 'suggestion') },
+  category:     { type: DataTypes.ENUM('booking', 'payment', 'profile', 'safety', 'technical', 'other') },
+  subject:      { type: DataTypes.STRING(300) },
+  message:      { type: DataTypes.TEXT },
+  related_id:   { type: DataTypes.UUID },
+  related_type: { type: DataTypes.STRING(50) },
+  status:       { type: DataTypes.ENUM('open', 'in_review', 'resolved', 'closed'), defaultValue: 'open' },
+  priority:     { type: DataTypes.ENUM('low', 'medium', 'high', 'urgent'), defaultValue: 'medium' },
+  admin_reply:  { type: DataTypes.TEXT },
+  replied_by:   { type: DataTypes.UUID },
+  replied_at:   { type: DataTypes.DATE },
+  attachments:  { type: DataTypes.JSONB, defaultValue: [] },
+  voice_note_url:       { type: DataTypes.STRING(500) },
+  voice_note_public_id: { type: DataTypes.STRING(500) },
+}, { tableName: 'reports', underscored: true });
+
+User.hasMany(Report, { foreignKey: 'user_id', as: 'reports' });
+Report.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
