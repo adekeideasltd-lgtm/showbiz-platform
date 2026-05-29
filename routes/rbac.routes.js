@@ -234,17 +234,10 @@ router.post('/payments/complete-booking/:bookingId', authenticate, checkPermissi
 router.post('/payments/initiate',          authenticate, paymentLimiter, requireRole('showbiz_owner'), paymentCtrl.initiatePayment);
 // verifyPayment removed - wallet-based payments verified instantly
 router.get('/payments',                    authenticate, requireRole('showbiz_owner'),        paymentCtrl.listPayments);
-router.get('/payments/:id',                authenticate,                                       paymentCtrl.getPayment);
 
-// Bank utilities
-router.get('/payments/banks',              authenticate, paymentCtrl.listBanks);
-router.post('/payments/verify-account',    authenticate, paymentCtrl.verifyAccount);
 
 // Admin payment routes
 router.get('/admin/payments',              authenticate, checkPermission('payments.view'),    paymentCtrl.adminListPayments);
-router.get('/admin/payouts',               authenticate, checkPermission('payments.view'),    paymentCtrl.adminListPayouts);
-router.post('/admin/payouts/:id/process',  authenticate, checkPermission('payments.manage'), paymentCtrl.processPayout);
-router.post('/admin/payments/:id/refund',  authenticate, checkPermission('payments.manage'), paymentCtrl.refundPayment);
 
 // ── BOOKING ROUTES ────────────────────────────────────────────────────────────
 const bookingCtrl = require('../controllers/booking.controller');

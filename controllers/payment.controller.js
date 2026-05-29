@@ -70,7 +70,7 @@ const initiatePayment = async (req, res) => {
     // Update booking to paid
     await booking.update({ status: 'paid' }, { transaction: t });
     await db.BookingStatusHistory.create({
-      booking_id, status: 'paid', changed_by: req.user.id, note: 'Payment made from wallet',
+      booking_id, to_status: 'paid', changed_by: req.user.id, note: 'Payment made from wallet',
     }, { transaction: t });
 
     await t.commit();
@@ -115,7 +115,7 @@ const completeBookingPayment = async (req, res) => {
     await booking.update({ status: 'completed' }, { transaction: t });
     await payment.update({ status: 'completed' }, { transaction: t });
     await db.BookingStatusHistory.create({
-      booking_id: booking.id, status: 'completed', changed_by: req.user.id, note: 'Completed — model wallet credited',
+      booking_id: booking.id, to_status: 'completed', changed_by: req.user.id, note: 'Completed — model wallet credited',
     }, { transaction: t });
 
     await t.commit();
