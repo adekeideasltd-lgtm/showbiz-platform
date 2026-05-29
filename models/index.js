@@ -367,4 +367,20 @@ const Report = sequelize.define('Report', {
 User.hasMany(Report, { foreignKey: 'user_id', as: 'reports' });
 Report.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Announcements ─────────────────────────────────────────────────────────────
+const Announcement = sequelize.define('Announcement', {
+  id:         { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  title:      { type: DataTypes.STRING(300), allowNull: false },
+  message:    { type: DataTypes.TEXT, allowNull: false },
+  type:       { type: DataTypes.ENUM('info', 'warning', 'success', 'urgent'), defaultValue: 'info' },
+  audience:   { type: DataTypes.ENUM('all', 'models', 'owners', 'admins'), defaultValue: 'all' },
+  is_active:  { type: DataTypes.BOOLEAN, defaultValue: true },
+  is_pinned:  { type: DataTypes.BOOLEAN, defaultValue: false },
+  expires_at: { type: DataTypes.DATE },
+  created_by: { type: DataTypes.UUID },
+}, { tableName: 'announcements', underscored: true });
+
+User.hasMany(Announcement, { foreignKey: 'created_by', as: 'announcements' });
+Announcement.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };

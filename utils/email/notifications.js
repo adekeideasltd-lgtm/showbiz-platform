@@ -192,6 +192,46 @@ const onReportReplied = async (user, report, reply) => {
   });
 };
 
+const onAnnouncement = async (announcement, sender) => {
+  // Get target users based on audience
+  const db = require('../models');
+  const { Op } = require('sequelize');
+  const roleMap = { all: null, models: 'model', owners: 'showbiz_owner', admins: 'admin' };
+  const targetRole = roleMap[announcement.audience];
+
+  let users = [];
+  if (!targetRole) {
+    users = await db.User.findAll({ where: { is_active: true }, attributes: ['email', 'first_name'] });
+  } else {
+    const roleRecord = await db.Role.findOne({ where: { name: targetRole } });
+    if (roleRecord) {
+      const userRoles = await db.UserRole.findAll({ where: { role_id: roleRecord.id } });
+      const ids = userRoles.map(ur => ur.user_id);
+      users = await db.User.findAll({ where: { id: { [Op.in]: ids } }, attributes: ['email', 'first_name'] });
+    }
+  }
+
+  const typeColors = { info: '#5B8DEF', warning: '#F5C842', success: '#2ECC8A', urgent: '#E85C5C' };
+  const color = typeColors[announcement.type] || '#C9A84C';
+
+  // Send in batches to avoid overwhelming SMTP
+  for (const user of users.slice(0, 100)) {
+    await sendEmail({
+      to: user.email,
+      subject: `📢 ${announcement.title} — Showbiz Platform`,
+      html: baseTemplate(announcement.title, `
+        <div style="border-left:4px solid ${color};padding-left:16px;margin-bottom:20px;">
+          <p style="font-size:12px;color:${color};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${announcement.type.toUpperCase()} ANNOUNCEMENT</p>
+          <p style="font-size:15px;color:#F0EEF8;line-height:1.8;">${announcement.message}</p>
+        </div>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${process.env.FRONTEND_URL}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Go to Dashboard</a>
+        </div>
+      `),
+    }).catch(() => {});
+  }
+};
+
 module.exports = {
   onModelRegistered, onOwnerRegistered,
   onModelApproved, onModelRejected,
@@ -202,4 +242,5 @@ module.exports = {
   onKYCSubmitted, onKYCApproved, onKYCRejected,
   onContactForm,
   onReportReplied,
+  onAnnouncement,
 };

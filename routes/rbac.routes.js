@@ -68,6 +68,15 @@ router.get('/auth/check-email',   registerCtrl.checkEmail);
 const contactCtrl = require('../controllers/contact.controller');
 router.post('/contact', contactCtrl.submitContact);
 
+
+// ── ANNOUNCEMENT ROUTES ───────────────────────────────────────────────────────
+const annCtrl = require('../controllers/announcement.controller');
+router.get('/announcements',              authenticate, annCtrl.listAnnouncements);
+router.get('/admin/announcements',        authenticate, checkPermission('users.manage'), annCtrl.adminList);
+router.post('/admin/announcements',       authenticate, checkPermission('users.manage'), annCtrl.adminCreate);
+router.put('/admin/announcements/:id',    authenticate, checkPermission('users.manage'), annCtrl.adminUpdate);
+router.delete('/admin/announcements/:id', authenticate, checkPermission('users.manage'), annCtrl.adminDelete);
+
 // ── REPORT & FEEDBACK ROUTES ──────────────────────────────────────────────────
 const reportCtrl = require('../controllers/report.controller');
 router.post('/reports',              authenticate, reportCtrl.createReport);
