@@ -442,4 +442,17 @@ const Setting = sequelize.define('Setting', {
   updated_by:  { type: DataTypes.UUID },
 }, { tableName: 'settings', underscored: true });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Push Subscriptions ────────────────────────────────────────────────────────
+const PushSubscription = sequelize.define('PushSubscription', {
+  id:         { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:    { type: DataTypes.UUID, allowNull: false },
+  endpoint:   { type: DataTypes.TEXT, allowNull: false },
+  p256dh:     { type: DataTypes.TEXT, allowNull: false },
+  auth:       { type: DataTypes.TEXT, allowNull: false },
+  user_agent: { type: DataTypes.STRING(300) },
+}, { tableName: 'push_subscriptions', underscored: true });
+
+User.hasMany(PushSubscription, { foreignKey: 'user_id', as: 'push_subscriptions' });
+PushSubscription.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, PushSubscription, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
