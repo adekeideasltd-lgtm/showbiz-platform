@@ -226,12 +226,13 @@ router.post('/messages/conversations/:id/close',  authenticate, requireRole('sup
 const paymentCtrl = require('../controllers/payment.controller');
 
 // Public (no auth) — Paystack webhook and callback
-router.post('/payments/webhook',           paymentCtrl.webhook);
-router.get('/payments/callback',           paymentCtrl.paymentCallback);
+router.post('/payments/webhook',           paymentCtrl.paystackWebhook);
+// paymentCallback removed - wallet-based payments don't need callback
 
 // Owner payment routes
+router.post('/payments/complete-booking/:bookingId', authenticate, checkPermission('bookings.manage'), paymentCtrl.completeBookingPayment);
 router.post('/payments/initiate',          authenticate, paymentLimiter, requireRole('showbiz_owner'), paymentCtrl.initiatePayment);
-router.get('/payments/verify',             authenticate,                                       paymentCtrl.verifyPayment);
+// verifyPayment removed - wallet-based payments verified instantly
 router.get('/payments',                    authenticate, requireRole('showbiz_owner'),        paymentCtrl.listPayments);
 router.get('/payments/:id',                authenticate,                                       paymentCtrl.getPayment);
 
