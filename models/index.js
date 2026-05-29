@@ -332,4 +332,16 @@ const ActiveSession = sequelize.define('ActiveSession', {
 User.hasMany(ActiveSession, { foreignKey: 'user_id', as: 'sessions' });
 ActiveSession.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Contact Submissions ───────────────────────────────────────────────────────
+const ContactSubmission = sequelize.define('ContactSubmission', {
+  id:         { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  name:       { type: DataTypes.STRING(200), allowNull: false },
+  email:      { type: DataTypes.STRING(200), allowNull: false },
+  subject:    { type: DataTypes.STRING(300), allowNull: false },
+  message:    { type: DataTypes.TEXT, allowNull: false },
+  status:     { type: DataTypes.ENUM('new', 'read', 'replied', 'closed'), defaultValue: 'new' },
+  admin_note: { type: DataTypes.TEXT },
+  ip_address: { type: DataTypes.STRING(100) },
+}, { tableName: 'contact_submissions', underscored: true });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };

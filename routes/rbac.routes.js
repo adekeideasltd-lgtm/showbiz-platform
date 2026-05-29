@@ -65,21 +65,14 @@ router.get('/auth/check-email',   registerCtrl.checkEmail);
 
 
 // ── PUBLIC CONTACT FORM ───────────────────────────────────────────────────────
-router.post('/contact', async (req, res) => {
-  try {
-    const { name, email, subject, message } = req.body;
-    if (!name || !email || !subject || !message)
-      return res.status(400).json({ status: 'error', message: 'All fields required.' });
+const contactCtrl = require('../controllers/contact.controller');
+router.post('/contact', contactCtrl.submitContact);
+// ── ADMIN CONTACT ROUTES ─────────────────────────────────────────────────────
+router.get('/admin/contact',        authenticate, checkPermission('users.manage'), contactCtrl.listContacts);
+router.get('/admin/contact/:id',    authenticate, checkPermission('users.manage'), contactCtrl.getContact);
+router.put('/admin/contact/:id',    authenticate, checkPermission('users.manage'), contactCtrl.updateContact);
+router.delete('/admin/contact/:id', authenticate, checkPermission('users.manage'), contactCtrl.deleteContact);
 
-    const notify = require('../utils/email/notifications');
-    await notify.onContactForm({ name, email, subject, message });
-
-    return res.json({ status: 'success', message: 'Message sent successfully.' });
-  } catch (err) {
-    console.error('[contact]', err.message);
-    return res.status(500).json({ status: 'error', message: 'Failed to send message.' });
-  }
-});
 // ── PUBLIC MODEL ROUTES (no auth needed) ─────────────────────────────────────
 const modelCtrlPublic = require('../controllers/model.controller');
 router.get('/models/public', optionalAuth, modelCtrlPublic.listModels);
