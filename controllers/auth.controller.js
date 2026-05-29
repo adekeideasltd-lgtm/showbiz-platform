@@ -146,4 +146,28 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { login, refresh, logout, resetPassword };
+// ── POST /api/auth/change-password ───────────────────────────────────────────
+const changePassword = async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password)
+      return res.status(400).json({ status: 'error', message: 'Both fields required.' });
+    if (new_password.length < 8)
+      return res.status(400).json({ status: 'error', message: 'Password must be at least 8 characters.' });
+
+    const user = await db.User.findByPk(req.user.id);
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid)
+      return res.status(401).json({ status: 'error', message: 'Current password is incorrect.' });
+
+    const hash = await bcrypt.hash(new_password, 12);
+    await user.update({ password_hash: hash });
+
+    return res.json({ status: 'success', message: 'Password changed successfully.' });
+  } catch (err) {
+    console.error('[changePassword]', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to change password.' });
+  }
+};
+
+module.exports = { login, changePassword, refresh, logout, resetPassword };

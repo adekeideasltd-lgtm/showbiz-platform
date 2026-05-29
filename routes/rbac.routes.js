@@ -3,7 +3,7 @@
 const express  = require('express');
 const router   = express.Router();
 
-const { authenticate, checkPermission, isSuperAdmin, requireRole, requirePasswordReset } = require('../middleware/rbac.middleware');
+const { authenticate, checkPermission, isSuperAdmin, requireRole, requirePasswordReset, optionalAuth } = require('../middleware/rbac.middleware');
 const roleCtrl  = require('../controllers/role.controller');
 const authCtrl     = require('../controllers/auth.controller');
 const registerCtrl = require('../controllers/auth.register.controller');
@@ -63,10 +63,36 @@ router.post('/auth/refresh',      authCtrl.refresh);
 router.post('/auth/register', registerLimiter,     registerCtrl.register);
 router.get('/auth/check-email',   registerCtrl.checkEmail);
 
+
+// ── PUBLIC CONTACT FORM ───────────────────────────────────────────────────────
+router.post('/contact', async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+    if (!name || !email || !subject || !message)
+      return res.status(400).json({ status: 'error', message: 'All fields required.' });
+
+    const notify = require('../utils/email/notifications');
+    await notify.onContactForm({ name, email, subject, message });
+
+    return res.json({ status: 'success', message: 'Message sent successfully.' });
+  } catch (err) {
+    console.error('[contact]', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to send message.' });
+  }
+});
+// ── PUBLIC MODEL ROUTES (no auth needed) ─────────────────────────────────────
+const modelCtrlPublic = require('../controllers/model.controller');
+router.get('/models/public', optionalAuth, modelCtrlPublic.listModels);
+
 // ── PROTECTED routes (token required from here down) ─────────────────────────
 router.use(authenticate);
 router.use(requirePasswordReset);
 
+router.post('/auth/change-password', authenticate, authCtrl.changePassword);
+const sessionCtrl = require('../controllers/session.controller');
+router.get('/auth/sessions',          authenticate, sessionCtrl.listSessions);
+router.delete('/auth/sessions/:id',   authenticate, sessionCtrl.revokeSession);
+router.delete('/auth/sessions',       authenticate, sessionCtrl.revokeAllSessions);
 router.post('/auth/logout',          authCtrl.logout);
 router.post('/auth/reset-password',  authCtrl.resetPassword);
 
@@ -167,12 +193,8 @@ router.post('/admin/bookings/:id/approve',     authenticate, checkPermission('bo
 router.post('/admin/bookings/:id/reject',      authenticate, checkPermission('bookings.approve'), bookingCtrl.adminRejectBooking);
 router.post('/admin/bookings/:id/complete',    authenticate, checkPermission('bookings.edit'),    bookingCtrl.completeBooking);
 
-// ── PUBLIC ROUTES (no auth) ───────────────────────────────────────────────────
-const modelCtrlPublic = require('../controllers/model.controller');
-router.get('/models/public', modelCtrlPublic.listModels);
-
 // ── MODEL ROUTES ──────────────────────────────────────────────────────────────
-const modelCtrl = require('../controllers/model.controller');
+const modelCtrl = modelCtrlPublic; // same module
 
 // Public
 router.get('/models',                       modelCtrl.listModels);

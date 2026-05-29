@@ -118,3 +118,25 @@ const requirePasswordReset = (req, res, next) => {
 };
 
 module.exports = { authenticate, checkPermission, requireRole, isSuperAdmin, ownResourceGuard, requirePasswordReset };
+// ── Optional auth — attaches user if token present, does not block ────────────
+const optionalAuth = async (req, res, next) => {
+  try {
+    const header = req.headers['authorization'];
+    if (!header || !header.startsWith('Bearer ')) return next();
+    const token = header.split(' ')[1];
+    const jwt   = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const db = require('../models');
+    const user = await db.User.findByPk(decoded.id);
+    if (user) {
+      req.user = {
+        id: user.id, email: user.email,
+        isSuperAdmin: user.is_super_admin,
+        roles: decoded.roles || [],
+      };
+    }
+  } catch {}
+  next();
+};
+
+module.exports.optionalAuth = optionalAuth;

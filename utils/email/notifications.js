@@ -1,6 +1,7 @@
 'use strict';
 
 const { sendEmail }  = require('./mailer');
+const { base: baseTemplate } = require('./templates');
 const templates      = require('./templates');
 
 const ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'superadmin@showbiz.ng';
@@ -137,6 +138,39 @@ const onKYCRejected = async (user, reason) => {
   });
 };
 
+const onContactForm = async ({ name, email, subject, message }) => {
+  await sendEmail({
+    to: process.env.SUPER_ADMIN_EMAIL,
+    subject: 'Contact Form: ' + subject,
+    html: baseTemplate('New Contact Form Submission', `
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;width:120px;">Name</td><td style="padding:8px;font-weight:600;">${name}</td></tr>
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Email</td><td style="padding:8px;">${email}</td></tr>
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Subject</td><td style="padding:8px;">${subject}</td></tr>
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;vertical-align:top;">Message</td><td style="padding:8px;line-height:1.7;">${message}</td></tr>
+      </table>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="mailto:${email}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Reply to ${name}</a>
+      </div>
+    `),
+  });
+
+  // Auto-reply to sender
+  await sendEmail({
+    to: email,
+    subject: 'We received your message — Showbiz Platform',
+    html: baseTemplate('Thanks for reaching out!', `
+      <p>Hi ${name},</p>
+      <p>Thank you for contacting Showbiz Platform. We have received your message and will respond within <strong>24 hours</strong>.</p>
+      <div style="background:#1A1A26;border:1px solid #2E2E42;border-radius:8px;padding:16px;margin:16px 0;">
+        <p style="font-size:12px;color:#8884A0;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Your message</p>
+        <p style="color:#F0EEF8;font-size:14px;line-height:1.7;margin:0;">${message}</p>
+      </div>
+      <p style="color:#8884A0;font-size:14px;">In the meantime, feel free to browse our <a href="${process.env.FRONTEND_URL}/models" style="color:#C9A84C;">model listings</a> or check our <a href="${process.env.FRONTEND_URL}/faq" style="color:#C9A84C;">FAQ</a>.</p>
+    `),
+  });
+};
+
 module.exports = {
   onModelRegistered, onOwnerRegistered,
   onModelApproved, onModelRejected,
@@ -145,4 +179,5 @@ module.exports = {
   onBookingConfirmedByModel, onBookingDeclinedByModel,
   onPaymentSuccess, onPayoutProcessed,
   onKYCSubmitted, onKYCApproved, onKYCRejected,
+  onContactForm,
 };

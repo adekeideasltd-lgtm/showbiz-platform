@@ -318,4 +318,18 @@ const KYCVerification = sequelize.define('KYCVerification', {
 User.hasOne(KYCVerification, { foreignKey: 'user_id', as: 'kyc' });
 KYCVerification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-module.exports = { sequelize, Sequelize, KYCVerification, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Active Sessions ───────────────────────────────────────────────────────────
+const ActiveSession = sequelize.define('ActiveSession', {
+  id:                 { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:            { type: DataTypes.UUID, allowNull: false },
+  refresh_token_hash: { type: DataTypes.STRING(500) },
+  ip_address:         { type: DataTypes.STRING(100) },
+  user_agent:         { type: DataTypes.TEXT },
+  is_revoked:         { type: DataTypes.BOOLEAN, defaultValue: false },
+  expires_at:         { type: DataTypes.DATE },
+}, { tableName: 'active_sessions', underscored: true });
+
+User.hasMany(ActiveSession, { foreignKey: 'user_id', as: 'sessions' });
+ActiveSession.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };

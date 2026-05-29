@@ -312,6 +312,7 @@ const adminNewBooking = ({ booking, ownerName, modelName }) => ({
 });
 
 module.exports = {
+  base,
   welcomeModel, welcomeOwner,
   bookingSubmitted, bookingForModel,
   bookingConfirmed, bookingDeclined,
