@@ -279,6 +279,7 @@ router.post('/admin/models/:id/approve',            authenticate, checkPermissio
 router.post('/admin/models/:id/reject',             authenticate, checkPermission('models.approve'), modelCtrl.rejectModel);
 router.post('/admin/models/:id/feature',            authenticate, checkPermission('models.edit'),    modelCtrl.featureModel);
 router.post('/admin/models/photos/:photoId/approve',authenticate, checkPermission('models.approve'), modelCtrl.approvePhoto);
+router.get('/admin/models/:id/photos',             authenticate, checkPermission('models.view'),    modelCtrl.adminGetModelPhotos);
 
 // Health
 router.get('/health', (req, res) => res.json({ status: 'ok' }));

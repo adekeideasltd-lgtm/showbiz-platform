@@ -347,8 +347,21 @@ const approvePhoto = async (req, res) => {
   }
 };
 
+// ── GET /api/admin/models/:id/photos ─────────────────────────────────────────
+const adminGetModelPhotos = async (req, res) => {
+  try {
+    const photos = await db.ModelPhoto.findAll({
+      where: { model_id: req.params.id },
+      order: [['is_primary', 'DESC'], ['created_at', 'DESC']],
+    });
+    return res.json({ status: 'success', data: photos });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch photos.' });
+  }
+};
+
 module.exports = {
-  listModels, getModel, getMyProfile, updateMyProfile,
+  listModels, getModel, getMyProfile, updateMyProfile, adminGetModelPhotos,
   addPhoto, deletePhoto, setAvailability, getAvailability,
   adminListModels, approveModel, rejectModel, featureModel, approvePhoto,
 };
