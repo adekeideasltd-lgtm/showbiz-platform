@@ -431,4 +431,15 @@ const BankTransfer = sequelize.define('BankTransfer', {
 User.hasMany(BankTransfer, { foreignKey: 'user_id', as: 'bank_transfers' });
 BankTransfer.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Settings ──────────────────────────────────────────────────────────────────
+const Setting = sequelize.define('Setting', {
+  id:          { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  key:         { type: DataTypes.STRING(100), allowNull: false, unique: true },
+  value:       { type: DataTypes.TEXT, allowNull: false },
+  label:       { type: DataTypes.STRING(200) },
+  description: { type: DataTypes.TEXT },
+  type:        { type: DataTypes.ENUM('number', 'string', 'boolean', 'json'), defaultValue: 'string' },
+  updated_by:  { type: DataTypes.UUID },
+}, { tableName: 'settings', underscored: true });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };

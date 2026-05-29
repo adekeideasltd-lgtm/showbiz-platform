@@ -71,6 +71,14 @@ router.post('/contact', contactCtrl.submitContact);
 
 
 
+
+// ── SETTINGS ROUTES ───────────────────────────────────────────────────────────
+const settingsCtrl = require('../controllers/settings.controller');
+router.get('/settings/public',          settingsCtrl.publicSettings);
+router.get('/admin/settings',           authenticate, checkPermission('users.manage'), settingsCtrl.listSettings);
+router.put('/admin/settings/bulk',      authenticate, checkPermission('users.manage'), settingsCtrl.bulkUpdate);
+router.put('/admin/settings/:key',      authenticate, checkPermission('users.manage'), settingsCtrl.updateSetting);
+
 // ── BANK TRANSFER ROUTES ──────────────────────────────────────────────────────
 const bankCtrl = require('../controllers/bank_transfer.controller');
 router.post('/bank-transfers',                    authenticate, bankCtrl.submitTransfer);

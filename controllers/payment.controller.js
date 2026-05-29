@@ -8,7 +8,13 @@ const { v4: uuidv4 } = require('uuid');
 const db      = require('../models');
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
-const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || '10');
+const { getSetting } = require('./settings.controller');
+// Commission rate is now stored in DB settings (fallback to env)
+let COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || '10');
+// Refresh from DB on each request
+const getCommissionRate = async () => {
+  try { return await getSetting('commission_rate', COMMISSION_RATE); } catch { return COMMISSION_RATE; }
+};
 
 // ── Helper: Paystack API request ──────────────────────────────────────────────
 const paystackRequest = (method, path, body = null) => {
@@ -80,7 +86,8 @@ const initiatePayment = async (req, res) => {
     }
 
     const amount        = parseFloat(booking.total_amount);
-    const commission    = parseFloat((amount * COMMISSION_RATE / 100).toFixed(2));
+    const RATE          = await getCommissionRate();
+    const commission    = parseFloat((amount * RATE / 100).toFixed(2));
     const model_payout  = parseFloat((amount - commission).toFixed(2));
     const reference     = 'SHW-' + uuidv4().split('-')[0].toUpperCase() + '-' + Date.now();
 
@@ -90,7 +97,7 @@ const initiatePayment = async (req, res) => {
       booking_id,
       payer_id:          req.user.id,
       amount,
-      commission_rate:   COMMISSION_RATE,
+      commission_rate:   RATE,
       commission_amount: commission,
       model_payout,
       currency:          'NGN',
