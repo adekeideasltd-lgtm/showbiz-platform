@@ -220,7 +220,7 @@ router.get('/messages/conversations',             authenticate, msgCtrl.listConv
 router.post('/messages/conversations',            authenticate, messageLimiter, msgCtrl.createConversation);
 router.get('/messages/conversations/:id',         authenticate, msgCtrl.getConversation);
 router.post('/messages/conversations/:id/reply',  authenticate, messageLimiter, msgCtrl.replyToConversation);
-router.post('/messages/conversations/:id/close',  authenticate, requireRole('super_admin','admin','manager'), msgCtrl.closeConversation);
+router.post('/messages/conversations/:id/close',  authenticate, msgCtrl.closeConversation);
 
 // ── PAYMENT ROUTES ───────────────────────────────────────────────────────────
 const paymentCtrl = require('../controllers/payment.controller');
