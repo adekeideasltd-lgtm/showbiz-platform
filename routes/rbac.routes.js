@@ -73,6 +73,14 @@ router.post('/contact', contactCtrl.submitContact);
 
 
 
+
+// ── PUSH NOTIFICATION ROUTES ──────────────────────────────────────────────────
+const pushCtrl = require('../controllers/push.controller');
+router.get('/push/vapid-key',        pushCtrl.getVapidKey);
+router.post('/push/subscribe',       authenticate, pushCtrl.subscribe);
+router.delete('/push/unsubscribe',   authenticate, pushCtrl.unsubscribe);
+router.post('/admin/push/broadcast', authenticate, checkPermission('users.manage'), pushCtrl.adminBroadcast);
+
 // ── EXPORT ROUTES ─────────────────────────────────────────────────────────────
 const exportCtrl = require('../controllers/export.controller');
 router.get('/admin/export/bookings',  authenticate, checkPermission('bookings.view'),  exportCtrl.exportBookings);
