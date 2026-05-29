@@ -72,6 +72,15 @@ router.post('/contact', contactCtrl.submitContact);
 
 
 
+
+// ── EXPORT ROUTES ─────────────────────────────────────────────────────────────
+const exportCtrl = require('../controllers/export.controller');
+router.get('/admin/export/bookings',  authenticate, checkPermission('bookings.view'),  exportCtrl.exportBookings);
+router.get('/admin/export/payments',  authenticate, checkPermission('payments.view'),  exportCtrl.exportPayments);
+router.get('/admin/export/users',     authenticate, checkPermission('users.view'),     exportCtrl.exportUsers);
+router.get('/admin/export/kyc',       authenticate, checkPermission('users.manage'),   exportCtrl.exportKYC);
+router.get('/admin/export/contacts',  authenticate, checkPermission('users.manage'),   exportCtrl.exportContacts);
+
 // ── SETTINGS ROUTES ───────────────────────────────────────────────────────────
 const settingsCtrl = require('../controllers/settings.controller');
 router.get('/settings/public',          settingsCtrl.publicSettings);
