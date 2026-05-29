@@ -230,6 +230,7 @@ router.post('/payments/webhook',           paymentCtrl.paystackWebhook);
 // paymentCallback removed - wallet-based payments don't need callback
 
 // Owner payment routes
+router.get('/payments/banks', authenticate, async (req, res) => res.json({ status: 'success', data: [] }));
 router.post('/payments/complete-booking/:bookingId', authenticate, checkPermission('bookings.manage'), paymentCtrl.completeBookingPayment);
 router.post('/payments/initiate',          authenticate, paymentLimiter, requireRole('showbiz_owner'), paymentCtrl.initiatePayment);
 // verifyPayment removed - wallet-based payments verified instantly
