@@ -61,7 +61,7 @@ const adminCreate = async (req, res) => {
       type:       type       || 'info',
       audience:   audience   || 'all',
       is_pinned:  is_pinned  || false,
-      expires_at: expires_at || null,
+      expires_at: (expires_at && expires_at !== 'Invalid date') ? expires_at : null,
       created_by: req.user.id,
     });
 

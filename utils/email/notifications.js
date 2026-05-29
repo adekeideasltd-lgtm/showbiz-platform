@@ -194,7 +194,7 @@ const onReportReplied = async (user, report, reply) => {
 
 const onAnnouncement = async (announcement, sender) => {
   // Get target users based on audience
-  const db = require('../models');
+  const db = require('../../models');
   const { Op } = require('sequelize');
   const roleMap = { all: null, models: 'model', owners: 'showbiz_owner', admins: 'admin' };
   const targetRole = roleMap[announcement.audience];
