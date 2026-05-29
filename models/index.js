@@ -383,4 +383,32 @@ const Announcement = sequelize.define('Announcement', {
 User.hasMany(Announcement, { foreignKey: 'created_by', as: 'announcements' });
 Announcement.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Wallet ────────────────────────────────────────────────────────────────────
+const Wallet = sequelize.define('Wallet', {
+  id:       { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:  { type: DataTypes.UUID, allowNull: false, unique: true },
+  balance:  { type: DataTypes.DECIMAL(12,2), defaultValue: 0.00 },
+  locked:   { type: DataTypes.DECIMAL(12,2), defaultValue: 0.00 },
+  currency: { type: DataTypes.STRING(5), defaultValue: 'NGN' },
+}, { tableName: 'wallets', underscored: true });
+
+const WalletTransaction = sequelize.define('WalletTransaction', {
+  id:             { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  wallet_id:      { type: DataTypes.UUID, allowNull: false },
+  user_id:        { type: DataTypes.UUID, allowNull: false },
+  type:           { type: DataTypes.ENUM('credit', 'debit', 'lock', 'unlock', 'refund') },
+  amount:         { type: DataTypes.DECIMAL(12,2), allowNull: false },
+  balance_before: { type: DataTypes.DECIMAL(12,2) },
+  balance_after:  { type: DataTypes.DECIMAL(12,2) },
+  description:    { type: DataTypes.STRING(500) },
+  reference:      { type: DataTypes.STRING(200) },
+  status:         { type: DataTypes.ENUM('pending', 'success', 'failed'), defaultValue: 'success' },
+  metadata:       { type: DataTypes.JSONB, defaultValue: {} },
+}, { tableName: 'wallet_transactions', underscored: true });
+
+User.hasOne(Wallet, { foreignKey: 'user_id', as: 'wallet' });
+Wallet.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+Wallet.hasMany(WalletTransaction, { foreignKey: 'wallet_id', as: 'transactions' });
+WalletTransaction.belongsTo(Wallet, { foreignKey: 'wallet_id', as: 'wallet' });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };

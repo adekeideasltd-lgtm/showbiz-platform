@@ -69,6 +69,17 @@ const contactCtrl = require('../controllers/contact.controller');
 router.post('/contact', contactCtrl.submitContact);
 
 
+
+// ── WALLET ROUTES ─────────────────────────────────────────────────────────────
+const walletCtrl = require('../controllers/wallet.controller');
+router.get('/wallet',                          authenticate, walletCtrl.getWallet);
+router.get('/wallet/transactions',             authenticate, walletCtrl.getTransactions);
+router.post('/wallet/fund',                    authenticate, walletCtrl.initiateFunding);
+router.get('/wallet/verify/:reference',        authenticate, walletCtrl.verifyFunding);
+router.get('/admin/wallets',                   authenticate, checkPermission('payments.view'), walletCtrl.adminListWallets);
+router.post('/admin/wallets/:userId/credit',   authenticate, checkPermission('payments.manage'), walletCtrl.adminCredit);
+router.post('/admin/wallets/:userId/debit',    authenticate, checkPermission('payments.manage'), walletCtrl.adminDebit);
+
 // ── ANNOUNCEMENT ROUTES ───────────────────────────────────────────────────────
 const annCtrl = require('../controllers/announcement.controller');
 router.get('/announcements',              authenticate, annCtrl.listAnnouncements);
