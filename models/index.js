@@ -411,4 +411,24 @@ Wallet.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Wallet.hasMany(WalletTransaction, { foreignKey: 'wallet_id', as: 'transactions' });
 WalletTransaction.belongsTo(Wallet, { foreignKey: 'wallet_id', as: 'wallet' });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Bank Transfers ────────────────────────────────────────────────────────────
+const BankTransfer = sequelize.define('BankTransfer', {
+  id:           { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:      { type: DataTypes.UUID, allowNull: false },
+  booking_id:   { type: DataTypes.UUID },
+  amount:       { type: DataTypes.DECIMAL(12,2), allowNull: false },
+  bank_name:    { type: DataTypes.STRING(100) },
+  account_name: { type: DataTypes.STRING(200) },
+  reference:    { type: DataTypes.STRING(200), allowNull: false },
+  receipt_url:  { type: DataTypes.STRING(500) },
+  receipt_public_id: { type: DataTypes.STRING(500) },
+  status:       { type: DataTypes.ENUM('pending', 'confirmed', 'rejected'), defaultValue: 'pending' },
+  admin_note:   { type: DataTypes.TEXT },
+  confirmed_by: { type: DataTypes.UUID },
+  confirmed_at: { type: DataTypes.DATE },
+}, { tableName: 'bank_transfers', underscored: true });
+
+User.hasMany(BankTransfer, { foreignKey: 'user_id', as: 'bank_transfers' });
+BankTransfer.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };

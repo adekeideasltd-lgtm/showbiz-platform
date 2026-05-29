@@ -70,6 +70,15 @@ router.post('/contact', contactCtrl.submitContact);
 
 
 
+
+// ── BANK TRANSFER ROUTES ──────────────────────────────────────────────────────
+const bankCtrl = require('../controllers/bank_transfer.controller');
+router.post('/bank-transfers',                    authenticate, bankCtrl.submitTransfer);
+router.get('/bank-transfers/me',                  authenticate, bankCtrl.getMyTransfers);
+router.get('/admin/bank-transfers',               authenticate, checkPermission('payments.view'), bankCtrl.adminList);
+router.post('/admin/bank-transfers/:id/confirm',  authenticate, checkPermission('payments.manage'), bankCtrl.adminConfirm);
+router.post('/admin/bank-transfers/:id/reject',   authenticate, checkPermission('payments.manage'), bankCtrl.adminReject);
+
 // ── WALLET ROUTES ─────────────────────────────────────────────────────────────
 const walletCtrl = require('../controllers/wallet.controller');
 router.get('/wallet',                          authenticate, walletCtrl.getWallet);

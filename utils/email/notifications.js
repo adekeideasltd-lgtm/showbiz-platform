@@ -232,6 +232,25 @@ const onAnnouncement = async (announcement, sender) => {
   }
 };
 
+const onBankTransferConfirmed = async (user, transfer) => {
+  await sendEmail({
+    to: user.email,
+    subject: '✅ Bank Transfer Confirmed — Wallet Credited',
+    html: baseTemplate('Transfer Confirmed!', `
+      <p>Hi ${user.first_name},</p>
+      <p>Your bank transfer has been confirmed and your wallet has been credited.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Reference</td><td style="padding:8px;font-weight:600;">${transfer.reference}</td></tr>
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Amount</td><td style="padding:8px;font-weight:700;color:#C9A84C;">₦${parseFloat(transfer.amount).toLocaleString()}</td></tr>
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Status</td><td style="padding:8px;color:#2ECC8A;font-weight:700;">Confirmed</td></tr>
+      </table>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${process.env.FRONTEND_URL}/owner/wallet" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">View Wallet</a>
+      </div>
+    `),
+  });
+};
+
 module.exports = {
   onModelRegistered, onOwnerRegistered,
   onModelApproved, onModelRejected,
@@ -243,4 +262,5 @@ module.exports = {
   onContactForm,
   onReportReplied,
   onAnnouncement,
+  onBankTransferConfirmed,
 };
