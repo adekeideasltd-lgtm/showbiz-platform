@@ -237,6 +237,7 @@ router.get('/payments',                    authenticate, requireRole('showbiz_ow
 
 
 // Admin payment routes
+router.get('/admin/payouts', authenticate, checkPermission('payments.view'), async (req, res) => res.json({ status: 'success', data: { payouts: [] } }));
 router.get('/admin/payments',              authenticate, checkPermission('payments.view'),    paymentCtrl.adminListPayments);
 
 // ── BOOKING ROUTES ────────────────────────────────────────────────────────────

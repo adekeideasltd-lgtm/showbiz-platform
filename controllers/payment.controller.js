@@ -157,7 +157,18 @@ const adminListPayments = async (req, res) => {
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit),
     });
-    return res.json({ status: 'success', data: { payments: rows, total: count } });
+    // Calculate summary
+    const totalRevenue   = await db.Payment.sum('amount',            { where: { status: ['success','completed'] } }) || 0;
+    const totalCommission = await db.Payment.sum('commission_amount', { where: { status: ['success','completed'] } }) || 0;
+    const totalPayouts   = await db.Payment.sum('model_payout',      { where: { status: ['success','completed'] } }) || 0;
+    const summary = {
+      total_revenue:     totalRevenue,
+      total_commission:  totalCommission,
+      total_payouts:     totalPayouts,
+      total_transactions: count,
+    };
+
+    return res.json({ status: 'success', data: { payments: rows, total: count, summary } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Failed.' });
   }
