@@ -74,6 +74,15 @@ router.post('/contact', contactCtrl.submitContact);
 
 
 
+
+// ── REVIEW ROUTES ─────────────────────────────────────────────────────────────
+const reviewCtrl = require('../controllers/review.controller');
+router.post('/reviews',                      authenticate, requireRole('showbiz_owner'), reviewCtrl.createReview);
+router.get('/reviews/model/:modelId',        reviewCtrl.getModelReviews);
+router.get('/reviews/booking/:bookingId',    authenticate, reviewCtrl.getBookingReview);
+router.get('/admin/reviews',                 authenticate, checkPermission('users.manage'), reviewCtrl.adminListReviews);
+router.put('/admin/reviews/:id/toggle',      authenticate, checkPermission('users.manage'), reviewCtrl.adminToggleReview);
+
 // ── PUSH NOTIFICATION ROUTES ──────────────────────────────────────────────────
 const pushCtrl = require('../controllers/push.controller');
 router.get('/push/vapid-key',        pushCtrl.getVapidKey);

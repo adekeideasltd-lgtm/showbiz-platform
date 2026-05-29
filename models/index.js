@@ -455,4 +455,21 @@ const PushSubscription = sequelize.define('PushSubscription', {
 User.hasMany(PushSubscription, { foreignKey: 'user_id', as: 'push_subscriptions' });
 PushSubscription.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, PushSubscription, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Reviews ───────────────────────────────────────────────────────────────────
+const Review = sequelize.define('Review', {
+  id:          { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  booking_id:  { type: DataTypes.UUID, allowNull: false, unique: true },
+  reviewer_id: { type: DataTypes.UUID, allowNull: false },
+  model_id:    { type: DataTypes.UUID, allowNull: false },
+  rating:      { type: DataTypes.INTEGER, allowNull: false, validate: { min: 1, max: 5 } },
+  title:       { type: DataTypes.STRING(200) },
+  comment:     { type: DataTypes.TEXT },
+  is_visible:  { type: DataTypes.BOOLEAN, defaultValue: true },
+}, { tableName: 'reviews', underscored: true });
+
+User.hasMany(Review, { foreignKey: 'reviewer_id', as: 'reviews_given' });
+Review.belongsTo(User, { foreignKey: 'reviewer_id', as: 'reviewer' });
+ModelProfile.hasMany(Review, { foreignKey: 'model_id', as: 'reviews' });
+Review.belongsTo(ModelProfile, { foreignKey: 'model_id', as: 'model' });
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, PushSubscription, Review, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
