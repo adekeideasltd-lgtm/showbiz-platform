@@ -1,6 +1,6 @@
 'use strict';
 const jwt = require('jsonwebtoken');
-const db  = require('./models');
+const db  = require('../models');
 
 module.exports = (io) => {
   // Auth middleware for socket connections
