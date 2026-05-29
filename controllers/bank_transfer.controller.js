@@ -19,7 +19,10 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } }).singl
 // ── POST /api/bank-transfers ──────────────────────────────────────────────────
 const submitTransfer = async (req, res) => {
   upload(req, res, async (err) => {
-    if (err) return res.status(400).json({ status: 'error', message: err.message });
+    // Only fail on actual upload errors, not missing file
+    if (err && err.code !== 'LIMIT_UNEXPECTED_FILE') {
+      console.error('[BankTransfer upload error]', err.message);
+    }
     try {
       const { amount, bank_name, account_name, reference, booking_id } = req.body;
       if (!amount || !reference)
@@ -43,7 +46,7 @@ const submitTransfer = async (req, res) => {
 
       return res.status(201).json({ status: 'success', message: 'Transfer submitted. Admin will confirm within 2-4 hours.', data: transfer });
     } catch (err) {
-      console.error('[submitTransfer]', err.message);
+      console.error('[submitTransfer] FULL ERROR:', err);
       return res.status(500).json({ status: 'error', message: 'Failed to submit transfer.' });
     }
   });
