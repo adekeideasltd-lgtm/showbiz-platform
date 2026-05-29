@@ -25,6 +25,9 @@ const submitTransfer = async (req, res) => {
     }
     try {
       const { amount, bank_name, account_name, reference, booking_id } = req.body;
+      // Validate booking_id is a UUID if provided
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const validBookingId = booking_id && uuidRegex.test(booking_id) ? booking_id : null;
       if (!amount || !reference)
         return res.status(400).json({ status: 'error', message: 'Amount and reference are required.' });
 
@@ -35,7 +38,7 @@ const submitTransfer = async (req, res) => {
 
       const transfer = await db.BankTransfer.create({
         user_id:      req.user.id,
-        booking_id:   booking_id || null,
+        booking_id:   validBookingId,
         amount,
         bank_name,
         account_name,
