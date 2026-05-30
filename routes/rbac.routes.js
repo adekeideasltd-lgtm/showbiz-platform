@@ -192,6 +192,7 @@ router.get('/permissions/modules', checkPermission('roles.view'), permCtrl.listM
 // User role management
 router.post('/users/:userId/roles',       requireRole('super_admin','admin'), roleCtrl.assignRoleToUser);
 router.delete('/users/:userId/roles',     requireRole('super_admin','admin'), roleCtrl.revokeRoleFromUser);
+router.post('/users/:userId/unsuspend', authenticate, checkPermission('users.manage'), roleCtrl.unsuspendUser);
 router.post('/users/:userId/suspend',     requireRole('super_admin','admin'), roleCtrl.suspendUser);
 router.post('/users/:userId/activate',    requireRole('super_admin','admin'), roleCtrl.activateUser);
 router.post('/users/:userId/force-reset', requireRole('super_admin','admin'), roleCtrl.forcePasswordReset);

@@ -382,6 +382,35 @@ const revokeRoleFromUser = async (req, res) => {
 // USER ACCOUNT ACTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** POST /api/users/:userId/unsuspend */
+const unsuspendUser = async (req, res) => {
+  try {
+    const user = await db.User.findByPk(req.params.userId);
+    if (!user) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+    await user.update({
+      is_suspended:     false,
+      suspended_reason: null,
+      suspended_by:     null,
+    });
+
+    // Send notification email
+    try {
+      const notify = require('../utils/email/notifications');
+      await notify.sendEmail({
+        to: user.email,
+        subject: '✅ Account Reactivated — Showbiz Platform',
+        html: `<p>Hi ${user.first_name},</p><p>Your account has been reactivated. You can now login.</p>`,
+      });
+    } catch {}
+
+    return res.json({ status: 'success', message: 'User account reactivated.' });
+  } catch (err) {
+    console.error('[unsuspendUser]', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to reactivate.' });
+  }
+};
+
 /** POST /api/users/:userId/suspend */
 const suspendUser = async (req, res) => {
   try {
@@ -477,6 +506,7 @@ module.exports = {
   assignRoleToUser,
   revokeRoleFromUser,
   suspendUser,
+  unsuspendUser,
   activateUser,
   forcePasswordReset,
 };
