@@ -118,6 +118,12 @@ const getMyProfile = async (req, res) => {
 };
 
 // ── PUT /api/models/me — update own profile ───────────────────────────────────
+const normalizeArray = (val) => {
+  if (Array.isArray(val)) return val.filter(Boolean);
+  if (typeof val === 'string') return val.split(',').map(s => s.trim()).filter(Boolean);
+  return [];
+};
+
 const updateMyProfile = async (req, res) => {
   try {
     const profile = await db.ModelProfile.findOne({ where: { user_id: req.user.id } });
