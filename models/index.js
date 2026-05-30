@@ -477,4 +477,24 @@ Review.belongsTo(User, { foreignKey: 'reviewer_id', as: 'reviewer' });
 ModelProfile.hasMany(Review, { foreignKey: 'model_id', as: 'reviews' });
 Review.belongsTo(ModelProfile, { foreignKey: 'model_id', as: 'model' });
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, PushSubscription, Review, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset };
+// ── Withdrawal ──────────────────────────────────────────────────────────────
+const Withdrawal = sequelize.define('Withdrawal', {
+  id:             { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+  user_id:        { type: DataTypes.UUID, allowNull: false },
+  amount:         { type: DataTypes.DECIMAL(15,2), allowNull: false },
+  bank_name:      { type: DataTypes.STRING(100), allowNull: false },
+  account_number: { type: DataTypes.STRING(20), allowNull: false },
+  account_name:   { type: DataTypes.STRING(100), allowNull: false },
+  status:         { type: DataTypes.STRING(20), defaultValue: 'pending' },
+  admin_note:     { type: DataTypes.TEXT },
+  processed_by:   { type: DataTypes.UUID },
+  processed_at:   { type: DataTypes.DATE },
+  wallet_debited: { type: DataTypes.BOOLEAN, defaultValue: false },
+  reference:      { type: DataTypes.STRING(100), unique: true },
+}, { tableName: 'withdrawals', underscored: true });
+
+Withdrawal.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(Withdrawal, { foreignKey: 'user_id', as: 'withdrawals' });
+
+
+module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, PushSubscription, Review, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset, Withdrawal };
