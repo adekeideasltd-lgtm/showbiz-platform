@@ -104,7 +104,7 @@ const listBookings = async (req, res) => {
       offset: (parseInt(page) - 1) * parseInt(limit),
       order:  [['created_at', 'DESC']],
       include: [
-        { model: db.User,         as: 'owner', attributes: ['id','first_name','last_name','email'] },
+        { model: db.User,         as: 'owner', attributes: ['id','first_name','last_name'] },
         { model: db.ModelProfile, as: 'model', include: [{ model: db.User, as: 'user', attributes: ['id','first_name','last_name'] }] },
       ],
     });
@@ -123,7 +123,7 @@ const getBooking = async (req, res) => {
   try {
     const booking = await db.Booking.findByPk(req.params.id, {
       include: [
-        { model: db.User,         as: 'owner', attributes: ['id','first_name','last_name','email'] },
+        { model: db.User,         as: 'owner', attributes: ['id','first_name','last_name'] },
         { model: db.ModelProfile, as: 'model', include: [{ model: db.User, as: 'user', attributes: ['id','first_name','last_name'] }] },
         { model: db.BookingStatusHistory, as: 'statusHistory', order: [['created_at','ASC']] },
       ],
@@ -160,7 +160,7 @@ const adminListBookings = async (req, res) => {
       offset: (parseInt(page) - 1) * parseInt(limit),
       order:  [['created_at', 'DESC']],
       include: [
-        { model: db.User,         as: 'owner', attributes: ['id','first_name','last_name','email'] },
+        { model: db.User,         as: 'owner', attributes: ['id','first_name','last_name'] },
         { model: db.ModelProfile, as: 'model', include: [{ model: db.User, as: 'user', attributes: ['id','first_name','last_name'] }] },
       ],
     });
