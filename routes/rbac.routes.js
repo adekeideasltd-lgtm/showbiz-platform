@@ -337,4 +337,12 @@ router.get('/admin/models/:id/photos',             authenticate, checkPermission
 // Health
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Withdrawal routes
+router.post('/withdrawals',                    authenticate, requireRole('model'), withdrawalCtrl.createWithdrawal);
+router.get('/withdrawals',                     authenticate, requireRole('model'), withdrawalCtrl.listWithdrawals);
+router.get('/admin/withdrawals',               authenticate, checkPermission('users.manage'), withdrawalCtrl.adminListWithdrawals);
+router.post('/admin/withdrawals/:id/approve',  authenticate, checkPermission('users.manage'), withdrawalCtrl.approveWithdrawal);
+router.post('/admin/withdrawals/:id/reject',   authenticate, checkPermission('users.manage'), withdrawalCtrl.rejectWithdrawal);
+router.post('/admin/withdrawals/:id/complete', authenticate, checkPermission('users.manage'), withdrawalCtrl.completeWithdrawal);
+
 module.exports = router;
