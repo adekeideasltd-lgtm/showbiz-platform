@@ -259,8 +259,8 @@ const adminListModels = async (req, res) => {
       offset: (parseInt(page) - 1) * parseInt(limit),
       order:  [['created_at', 'DESC']],
       include: [
-        { model: db.User, as: 'user', attributes: ['id', 'first_name', 'last_name', 'email'] },
-        { model: db.ModelPhoto, as: 'photos', required: false },
+        { model: db.User, as: 'user', attributes: ['id', 'first_name', 'last_name'] },
+        { model: db.ModelPhoto, as: 'photos', required: false, where: { is_approved: true }, },
       ],
     });
 
