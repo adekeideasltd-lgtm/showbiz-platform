@@ -446,4 +446,5 @@ module.exports = {
   listModels, getModel, getMyProfile, updateMyProfile, adminGetModelPhotos,
   addPhoto, deletePhoto, setAvailability, getAvailability,
   adminListModels, approveModel, rejectModel, featureModel, approvePhoto,
+  uploadIntroVideo, deleteIntroVideo, approveIntroVideo, rejectIntroVideo,
 };
