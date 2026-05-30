@@ -251,6 +251,92 @@ const onBankTransferConfirmed = async (user, transfer) => {
   });
 };
 
+// ── Admin Notifications ───────────────────────────────────────────────────────
+const notifyAdmin = async (subject, html) => {
+  const db = require('../../models');
+  try {
+    const setting = await db.Setting.findOne({ where: { key: 'support_email' } });
+    const adminEmail = setting?.value || process.env.SMTP_USER;
+    await sendEmail({ to: adminEmail, subject, html: baseTemplate(subject, html) });
+  } catch (err) { console.error('[notifyAdmin]', err.message); }
+};
+
+const onNewKYCSubmission = async (user) => {
+  await notifyAdmin(
+    `🛡️ New KYC Submission — ${user.first_name} ${user.last_name}`,
+    `<p>A new KYC submission has been received from <strong>${user.first_name} ${user.last_name}</strong> (${user.email}).</p>
+     <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/kyc" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Review KYC</a></div>`
+  );
+};
+
+const onNewBookingAdmin = async (booking, owner, model) => {
+  await notifyAdmin(
+    `📅 New Booking Request — ${booking.event_title}`,
+    `<p><strong>${owner?.first_name} ${owner?.last_name}</strong> has created a new booking request for <strong>${model?.user?.first_name || 'a model'}</strong>.</p>
+     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Event</td><td style="padding:8px;font-weight:600;">${booking.event_title}</td></tr>
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Date</td><td style="padding:8px;">${booking.event_date}</td></tr>
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Amount</td><td style="padding:8px;font-weight:700;color:#C9A84C;">₦${parseFloat(booking.total_amount).toLocaleString()}</td></tr>
+     </table>
+     <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/bookings" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Review Booking</a></div>`
+  );
+};
+
+const onNewReportAdmin = async (user, report) => {
+  await notifyAdmin(
+    `🚩 New Report Submitted — ${report.subject}`,
+    `<p><strong>${user.first_name} ${user.last_name}</strong> has submitted a new report.</p>
+     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Subject</td><td style="padding:8px;font-weight:600;">${report.subject}</td></tr>
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Type</td><td style="padding:8px;">${report.type}</td></tr>
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Priority</td><td style="padding:8px;">${report.priority}</td></tr>
+     </table>
+     <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/reports" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">View Report</a></div>`
+  );
+};
+
+const onNewBankTransferAdmin = async (user, transfer) => {
+  await notifyAdmin(
+    `🏦 New Bank Transfer Submission — ₦${parseFloat(transfer.amount).toLocaleString()}`,
+    `<p><strong>${user.first_name} ${user.last_name}</strong> has submitted a bank transfer for confirmation.</p>
+     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Amount</td><td style="padding:8px;font-weight:700;color:#C9A84C;">₦${parseFloat(transfer.amount).toLocaleString()}</td></tr>
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Reference</td><td style="padding:8px;">${transfer.reference}</td></tr>
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Bank</td><td style="padding:8px;">${transfer.bank_name || '-'}</td></tr>
+     </table>
+     <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/bank-transfers" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Confirm Transfer</a></div>`
+  );
+};
+
+const onWalletCredited = async (user, amount, description) => {
+  await sendEmail({
+    to: user.email,
+    subject: '💰 Wallet Credited — Showbiz Platform',
+    html: baseTemplate('Wallet Credited', `
+      <p>Hi ${user.first_name},</p>
+      <p>Your wallet has been credited successfully.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Amount</td><td style="padding:8px;font-weight:700;color:#2ECC8A;">+₦${parseFloat(amount).toLocaleString()}</td></tr>
+        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Description</td><td style="padding:8px;">${description}</td></tr>
+      </table>
+      <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/owner/wallet" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">View Wallet</a></div>
+    `),
+  });
+};
+
+const onAccountSuspended = async (user, reason) => {
+  await sendEmail({
+    to: user.email,
+    subject: '⚠️ Account Suspended — Showbiz Platform',
+    html: baseTemplate('Account Suspended', `
+      <p>Hi ${user.first_name},</p>
+      <p>Your account has been suspended. Please contact support for more information.</p>
+      ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+      <div style="text-align:center;margin:24px 0;"><a href="mailto:${process.env.SMTP_USER}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Contact Support</a></div>
+    `),
+  });
+};
+
 module.exports = {
   onModelRegistered, onOwnerRegistered,
   onModelApproved, onModelRejected,
@@ -263,4 +349,10 @@ module.exports = {
   onReportReplied,
   onAnnouncement,
   onBankTransferConfirmed,
+  onNewKYCSubmission,
+  onNewBookingAdmin,
+  onNewReportAdmin,
+  onNewBankTransferAdmin,
+  onWalletCredited,
+  onAccountSuspended,
 };

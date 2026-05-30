@@ -70,7 +70,8 @@ const createBooking = async (req, res) => {
     try {
       const owner     = await db.User.findByPk(req.user.id);
       const modelUser = await db.User.findByPk(modelProfile.user_id);
-      if (owner && modelUser) notify.onBookingCreated(booking, owner, modelUser).catch(console.error);
+      if (owner && modelUser) notify.onNewBookingAdmin(booking, owner, modelProfile).catch(console.error);
+    notify.onBookingCreated(booking, owner, modelUser).catch(console.error);
     } catch (_) {}
 
     return res.status(201).json({

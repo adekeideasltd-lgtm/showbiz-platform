@@ -16,6 +16,11 @@ const creditWallet = async (userId, amount, description, reference, metadata = {
   const balanceBefore = parseFloat(wallet.balance);
   const balanceAfter  = balanceBefore + parseFloat(amount);
   await wallet.update({ balance: balanceAfter });
+  // Send email notification for wallet credit
+  try {
+    const user = await db.User.findByPk(userId);
+    if (user) require('../utils/email/notifications').onWalletCredited(user, amount, description).catch(() => {});
+  } catch {}
   await db.WalletTransaction.create({
     wallet_id:      wallet.id,
     user_id:        userId,
@@ -39,6 +44,11 @@ const debitWallet = async (userId, amount, description, reference, metadata = {}
     throw new Error('Insufficient wallet balance');
   const balanceAfter = balanceBefore - parseFloat(amount);
   await wallet.update({ balance: balanceAfter });
+  // Send email notification for wallet credit
+  try {
+    const user = await db.User.findByPk(userId);
+    if (user) require('../utils/email/notifications').onWalletCredited(user, amount, description).catch(() => {});
+  } catch {}
   await db.WalletTransaction.create({
     wallet_id:      wallet.id,
     user_id:        userId,

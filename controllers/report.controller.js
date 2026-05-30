@@ -62,7 +62,8 @@ const createReport = async (req, res) => {
       });
 
       console.log('[Report] Created by', req.user.email, '— type:', type);
-      return res.status(201).json({ status: 'success', message: 'Report submitted successfully.', data: report });
+      require('../utils/email/notifications').onNewReportAdmin(req.user, report).catch(console.error);
+    return res.status(201).json({ status: 'success', message: 'Report submitted successfully.', data: report });
     } catch (err) {
       console.error('[createReport]', err.message);
       return res.status(500).json({ status: 'error', message: 'Failed to submit report.' });

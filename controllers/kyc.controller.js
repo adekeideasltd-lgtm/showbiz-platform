@@ -73,6 +73,7 @@ const submitKYC = async (req, res) => {
 
       console.log('[KYC] Submitted by', user.email);
       notify.onKYCSubmitted(user).catch(console.error);
+    notify.onNewKYCSubmission(user).catch(console.error);
       return res.json({ status: 'success', message: 'KYC submitted! Our team will review within 24-48 hours.', data: kyc });
     } catch (err) {
       console.error('[submitKYC]', err.message);

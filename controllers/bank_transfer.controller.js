@@ -47,6 +47,7 @@ const submitTransfer = async (req, res) => {
         receipt_public_id: req.file?.filename   || null,
       });
 
+      require('../utils/email/notifications').onNewBankTransferAdmin(req.user, transfer).catch(console.error);
       return res.status(201).json({ status: 'success', message: 'Transfer submitted. Admin will confirm within 2-4 hours.', data: transfer });
     } catch (err) {
       console.error('[submitTransfer] FULL ERROR:', err);
