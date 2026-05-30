@@ -140,4 +140,57 @@ const adminRejectKYC = async (req, res) => {
   }
 };
 
+// ── POST /api/admin/kyc/:id/revoke — revoke approved KYC ─────────────────────
+const revokeKYC = async (req, res) => {
+  try {
+    const kyc = await db.KYCVerification.findByPk(req.params.id, {
+      include: [{ model: db.User, as: 'user' }]
+    });
+    if (!kyc) return res.status(404).json({ status: 'error', message: 'KYC not found.' });
+
+    const { reason } = req.body;
+    await kyc.update({ status: 'revoked', rejection_reason: reason || 'KYC revoked by admin.' });
+    await db.User.update({ kyc_verified: false }, { where: { id: kyc.user_id } });
+
+    // Notify user
+    try {
+      const notify = require('../utils/email/notifications');
+      await notify.onKYCRejected(kyc.user, reason || 'Your KYC has been revoked. Please resubmit.');
+    } catch {}
+
+    return res.json({ status: 'success', message: 'KYC revoked.' });
+  } catch (err) {
+    console.error('[revokeKYC]', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to revoke KYC.' });
+  }
+};
+
+// ── POST /api/admin/kyc/:id/request-resubmission — ask user to resubmit ───────
+const requestResubmission = async (req, res) => {
+  try {
+    const kyc = await db.KYCVerification.findByPk(req.params.id, {
+      include: [{ model: db.User, as: 'user' }]
+    });
+    if (!kyc) return res.status(404).json({ status: 'error', message: 'KYC not found.' });
+
+    const { reason, documents } = req.body;
+    const note = reason || 'Please resubmit your KYC documents.';
+    const docNote = documents ? ` Documents required: ${documents}` : '';
+
+    await kyc.update({ status: 'resubmission_required', rejection_reason: note + docNote });
+    await db.User.update({ kyc_verified: false }, { where: { id: kyc.user_id } });
+
+    // Notify user
+    try {
+      const notify = require('../utils/email/notifications');
+      await notify.onKYCRejected(kyc.user, note + docNote);
+    } catch {}
+
+    return res.json({ status: 'success', message: 'Resubmission request sent to user.' });
+  } catch (err) {
+    console.error('[requestResubmission]', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed.' });
+  }
+};
+
 module.exports = { getMyKYC, submitKYC, adminListKYC, adminGetKYC, adminApproveKYC, adminRejectKYC };
