@@ -19,7 +19,7 @@ const initiatePayment = async (req, res) => {
     if (!booking_id) { await t.rollback(); return res.status(400).json({ status: 'error', message: 'booking_id required.' }); }
 
     const booking = await db.Booking.findByPk(booking_id, {
-      include: [{ model: db.User, as: 'payer', attributes: ['id','email','first_name','last_name'] }],
+      include: [{ model: db.User, as: 'owner', attributes: ['id','email','first_name','last_name'] }],
       transaction: t,
     });
 
