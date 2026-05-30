@@ -137,12 +137,19 @@ const updateMyProfile = async (req, res) => {
 
     const updates = {};
     for (const key of allowed) {
-      if (req.body[key] !== undefined) updates[key] = req.body[key];
+      if (req.body[key] !== undefined) {
+        if (key === 'specialties' || key === 'languages') {
+          updates[key] = normalizeArray(req.body[key]);
+        } else {
+          updates[key] = req.body[key];
+        }
+      }
     }
 
     await profile.update(updates);
     return res.json({ status: 'success', message: 'Profile updated.', data: profile });
   } catch (err) {
+    console.error('[updateMyProfile]', err.message, err.stack?.split('\n')[1]);
     return res.status(500).json({ status: 'error', message: 'Failed to update profile.' });
   }
 };
