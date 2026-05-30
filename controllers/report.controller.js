@@ -62,6 +62,19 @@ const createReport = async (req, res) => {
       });
 
       console.log('[Report] Created by', req.user.email, '— type:', type);
+      // Auto-debit wallet for withdrawal requests
+      if (type === 'withdrawal_request') {
+        try {
+          const amountMatch = message.match(/Amount: ₦([\d,]+\.?\d*)/);
+          if (amountMatch) {
+            const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+            const { debitWallet } = require('./wallet.controller');
+            await debitWallet(req.user.id, amount, 'Withdrawal request (pending)', report.id, { report_id: report.id });
+          }
+        } catch (debitErr) {
+          console.error('[createReport] Wallet debit failed:', debitErr.message);
+        }
+      }
       require('../utils/email/notifications').onNewReportAdmin(req.user, report).catch(console.error);
     return res.status(201).json({ status: 'success', message: 'Report submitted successfully.', data: report });
     } catch (err) {
