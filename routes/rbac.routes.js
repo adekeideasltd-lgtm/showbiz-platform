@@ -132,6 +132,7 @@ router.put('/admin/announcements/:id',    authenticate, checkPermission('users.m
 router.delete('/admin/announcements/:id', authenticate, checkPermission('users.manage'), annCtrl.adminDelete);
 
 // ── REPORT & FEEDBACK ROUTES ──────────────────────────────────────────────────
+const withdrawalCtrl = require('../controllers/withdrawal.controller');
 const reportCtrl = require('../controllers/report.controller');
 router.post('/reports',              authenticate, reportCtrl.createReport);
 router.get('/reports/me',            authenticate, reportCtrl.getMyReports);
