@@ -192,6 +192,31 @@ router.get('/permissions/modules', checkPermission('roles.view'), permCtrl.listM
 // User role management
 router.post('/users/:userId/roles',       requireRole('super_admin','admin'), roleCtrl.assignRoleToUser);
 router.delete('/users/:userId/roles',     requireRole('super_admin','admin'), roleCtrl.revokeRoleFromUser);
+router.get('/admin/users', authenticate, checkPermission('users.manage'), async (req, res) => {
+  try {
+    const db = require('../models');
+    const { page = 1, limit = 20, search, role } = req.query;
+    const { Op } = require('sequelize');
+    const where = {};
+    if (search) where[Op.or] = [
+      { first_name: { [Op.iLike]: '%' + search + '%' } },
+      { last_name:  { [Op.iLike]: '%' + search + '%' } },
+      { email:      { [Op.iLike]: '%' + search + '%' } },
+    ];
+    const { count, rows } = await db.User.findAndCountAll({
+      where,
+      include: [{ model: db.Role, as: 'roles', through: { attributes: [] }, attributes: ['name', 'display_name'] }],
+      attributes: ['id','first_name','last_name','email','is_active','is_suspended','kyc_verified','created_at'],
+      order: [['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit),
+    });
+    return res.json({ status: 'success', data: { users: rows, total: count } });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 router.post('/users/:userId/unsuspend', authenticate, checkPermission('users.manage'), roleCtrl.unsuspendUser);
 router.post('/users/:userId/suspend',     requireRole('super_admin','admin'), roleCtrl.suspendUser);
 router.post('/users/:userId/activate',    requireRole('super_admin','admin'), roleCtrl.activateUser);
