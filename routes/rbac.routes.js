@@ -203,9 +203,11 @@ router.get('/admin/users', authenticate, checkPermission('users.manage'), async 
       { last_name:  { [Op.iLike]: '%' + search + '%' } },
       { email:      { [Op.iLike]: '%' + search + '%' } },
     ];
+    // Role filter via include
+    const roleWhere = role ? { name: role } : {};
     const { count, rows } = await db.User.findAndCountAll({
       where,
-      include: [{ model: db.Role, as: 'roles', through: { attributes: [] }, attributes: ['name', 'display_name'] }],
+      include: [{ model: db.Role, as: 'roles', through: { attributes: [] }, attributes: ['name', 'display_name'], where: Object.keys(roleWhere).length ? roleWhere : undefined, required: !!role }],
       attributes: ['id','first_name','last_name','email','is_active','is_suspended','kyc_verified','created_at'],
       order: [['created_at', 'DESC']],
       limit: parseInt(limit),
