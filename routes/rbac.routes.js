@@ -222,6 +222,13 @@ router.get('/admin/users', authenticate, checkPermission('users.manage'), async 
 router.post('/users/:userId/unsuspend', authenticate, checkPermission('users.manage'), roleCtrl.unsuspendUser);
 router.post('/users/:userId/suspend',     requireRole('super_admin','admin'), roleCtrl.suspendUser);
 router.post('/users/:userId/activate',    requireRole('super_admin','admin'), roleCtrl.activateUser);
+router.post('/users/:userId/verify-email', authenticate, requireRole('super_admin','admin'), async (req, res) => {
+  try {
+    const db = require('../models');
+    await db.User.update({ email_verified: true }, { where: { id: req.params.userId } });
+    return res.json({ status: 'success', message: 'Email verified.' });
+  } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
+});
 router.post('/users/:userId/force-reset', requireRole('super_admin','admin'), roleCtrl.forcePasswordReset);
 
 // Audit
