@@ -366,6 +366,82 @@ const adminGetModelPhotos = async (req, res) => {
   }
 };
 
+// ── POST /api/models/me/video — upload intro video ────────────────────────────
+const uploadIntroVideo = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ status: 'error', message: 'No video file provided.' });
+    const profile = await db.ModelProfile.findOne({ where: { user_id: req.user.id } });
+    if (!profile) return res.status(404).json({ status: 'error', message: 'Profile not found.' });
+
+    // Delete old video if exists
+    if (profile.intro_video_public_id) {
+      const cloudinary = require('cloudinary').v2;
+      await cloudinary.uploader.destroy(profile.intro_video_public_id, { resource_type: 'video' }).catch(() => {});
+    }
+
+    await profile.update({
+      intro_video_url:       req.file.path,
+      intro_video_public_id: req.file.filename,
+      intro_video_status:    'pending',
+      intro_video_approved_at: null,
+      intro_video_approved_by: null,
+    });
+
+    return res.json({ status: 'success', message: 'Video uploaded. Awaiting admin approval.', data: { url: req.file.path } });
+  } catch (err) {
+    console.error('[uploadIntroVideo]', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to upload video.' });
+  }
+};
+
+// ── DELETE /api/models/me/video — delete intro video ─────────────────────────
+const deleteIntroVideo = async (req, res) => {
+  try {
+    const profile = await db.ModelProfile.findOne({ where: { user_id: req.user.id } });
+    if (!profile) return res.status(404).json({ status: 'error', message: 'Profile not found.' });
+    if (profile.intro_video_public_id) {
+      const cloudinary = require('cloudinary').v2;
+      await cloudinary.uploader.destroy(profile.intro_video_public_id, { resource_type: 'video' }).catch(() => {});
+    }
+    await profile.update({ intro_video_url: null, intro_video_public_id: null, intro_video_status: null });
+    return res.json({ status: 'success', message: 'Video deleted.' });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Failed to delete video.' });
+  }
+};
+
+// ── POST /api/admin/models/:id/video/approve ──────────────────────────────────
+const approveIntroVideo = async (req, res) => {
+  try {
+    const profile = await db.ModelProfile.findByPk(req.params.id);
+    if (!profile) return res.status(404).json({ status: 'error', message: 'Profile not found.' });
+    await profile.update({
+      intro_video_status:    'approved',
+      intro_video_approved_at: new Date(),
+      intro_video_approved_by: req.user.id,
+    });
+    return res.json({ status: 'success', message: 'Video approved.' });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Failed.' });
+  }
+};
+
+// ── POST /api/admin/models/:id/video/reject ───────────────────────────────────
+const rejectIntroVideo = async (req, res) => {
+  try {
+    const profile = await db.ModelProfile.findByPk(req.params.id);
+    if (!profile) return res.status(404).json({ status: 'error', message: 'Profile not found.' });
+    if (profile.intro_video_public_id) {
+      const cloudinary = require('cloudinary').v2;
+      await cloudinary.uploader.destroy(profile.intro_video_public_id, { resource_type: 'video' }).catch(() => {});
+    }
+    await profile.update({ intro_video_url: null, intro_video_public_id: null, intro_video_status: 'rejected' });
+    return res.json({ status: 'success', message: 'Video rejected.' });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Failed.' });
+  }
+};
+
 module.exports = {
   listModels, getModel, getMyProfile, updateMyProfile, adminGetModelPhotos,
   addPhoto, deletePhoto, setAvailability, getAvailability,

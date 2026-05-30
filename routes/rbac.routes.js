@@ -241,6 +241,19 @@ router.get('/payments',                    authenticate, requireRole('showbiz_ow
 router.get('/admin/payouts', authenticate, checkPermission('payments.view'), async (req, res) => res.json({ status: 'success', data: { payouts: [] } }));
 router.get('/admin/payments',              authenticate, checkPermission('payments.view'),    paymentCtrl.adminListPayments);
 
+// ── MODEL VIDEO ROUTES
+const { uploadIntroVideo, deleteIntroVideo, approveIntroVideo, rejectIntroVideo } = require('../controllers/model.controller');
+const multer        = require('multer');
+const cloudinaryMod = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const videoStorage  = new CloudinaryStorage({ cloudinary: cloudinaryMod, params: { folder: 'showbiz/videos', resource_type: 'video', allowed_formats: ['mp4','mov','avi','webm'], transformation: [{ quality: 'auto' }] } });
+const videoUpload   = multer({ storage: videoStorage, limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limit
+
+router.post('/models/me/video',              authenticate, requireRole('model'), videoUpload.single('video'), uploadIntroVideo);
+router.delete('/models/me/video',            authenticate, requireRole('model'),                               deleteIntroVideo);
+router.post('/admin/models/:id/video/approve', authenticate, checkPermission('models.manage'),                approveIntroVideo);
+router.post('/admin/models/:id/video/reject',  authenticate, checkPermission('models.manage'),                rejectIntroVideo);
+
 // ── BOOKING ROUTES ────────────────────────────────────────────────────────────
 const bookingCtrl = require('../controllers/booking.controller');
 
