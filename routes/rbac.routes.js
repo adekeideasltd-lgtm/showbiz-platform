@@ -241,6 +241,14 @@ router.get('/payments',                    authenticate, requireRole('showbiz_ow
 router.get('/admin/payouts', authenticate, checkPermission('payments.view'), async (req, res) => res.json({ status: 'success', data: { payouts: [] } }));
 router.get('/admin/payments',              authenticate, checkPermission('payments.view'),    paymentCtrl.adminListPayments);
 
+// ── 2FA ROUTES
+const twofaCtrl = require('../controllers/twofa.controller');
+router.get('/auth/2fa/status',   authenticate, twofaCtrl.get2FAStatus);
+router.get('/auth/2fa/setup',    authenticate, twofaCtrl.setup2FA);
+router.post('/auth/2fa/enable',  authenticate, twofaCtrl.enable2FA);
+router.post('/auth/2fa/disable', authenticate, twofaCtrl.disable2FA);
+router.post('/auth/2fa/verify',               twofaCtrl.verify2FA);
+
 // ── MODEL VIDEO ROUTES
 const { uploadIntroVideo, deleteIntroVideo, approveIntroVideo, rejectIntroVideo } = require('../controllers/model.controller');
 const multer        = require('multer');

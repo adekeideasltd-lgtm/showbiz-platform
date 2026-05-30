@@ -29,8 +29,10 @@
     "nodemailer": "^8.0.9",
     "pg": "^8.21.0",
     "pg-hstore": "^2.3.4",
+    "qrcode": "^1.5.4",
     "sequelize": "^6.37.8",
     "socket.io": "^4.8.3",
+    "speakeasy": "^2.0.0",
     "ua-parser-js": "^2.0.10",
     "uuid": "^14.0.0",
     "web-push": "^3.6.7"
