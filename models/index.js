@@ -112,7 +112,12 @@ const ModelProfile = sequelize.define('ModelProfile', {
   is_featured:     { type: DataTypes.BOOLEAN, defaultValue: false },
   approved_by:     { type: DataTypes.UUID },
   approved_at:     { type: DataTypes.DATE },
-  rejected_reason: { type: DataTypes.TEXT },
+  rejected_reason:         { type: DataTypes.TEXT },
+  intro_video_url:         { type: DataTypes.STRING(500) },
+  intro_video_public_id:   { type: DataTypes.STRING(300) },
+  intro_video_status:      { type: DataTypes.STRING(20) },
+  intro_video_approved_at: { type: DataTypes.DATE },
+  intro_video_approved_by: { type: DataTypes.UUID },
 }, { tableName: 'model_profiles', underscored: true });
 
 const ShowbizProfile = sequelize.define('ShowbizProfile', {
