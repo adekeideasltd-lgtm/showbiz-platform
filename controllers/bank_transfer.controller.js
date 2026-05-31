@@ -63,7 +63,7 @@ const getMyTransfers = async (req, res) => {
       where: { user_id: req.user.id },
       order: [['created_at', 'DESC']],
     });
-    return res.json({ status: 'success', data: transfers });
+    return res.json({ status: 'success', data: { transfers: rows, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Failed to fetch transfers.' });
   }

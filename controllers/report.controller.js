@@ -87,11 +87,19 @@ const createReport = async (req, res) => {
 // ── GET /api/reports/me ───────────────────────────────────────────────────────
 const getMyReports = async (req, res) => {
   try {
-    const reports = await db.Report.findAll({
+    const { page = 1, limit = 20, status, type, priority } = req.query;
+    const where = {};
+    if (status)   where.status   = status;
+    if (type)     where.type     = type;
+    if (priority) where.priority = priority;
+    const { count, rows } = await db.Report.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit),
       where: { user_id: req.user.id },
       order: [['created_at', 'DESC']],
     });
-    return res.json({ status: 'success', data: reports });
+    return res.json({ status: 'success', data: { reports: rows, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Failed to fetch reports.' });
   }

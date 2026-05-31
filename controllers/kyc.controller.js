@@ -86,12 +86,18 @@ const adminListKYC = async (req, res) => {
   try {
     const where = {};
     if (req.query.status) where.status = req.query.status;
-    const submissions = await db.KYCVerification.findAll({
+    const { page = 1, limit = 20, status } = req.query;
+    const where = {};
+    if (status) where.status = status;
+    const { count, rows } = await db.KYCVerification.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit),
       where,
       include: [{ model: db.User, as: 'user', attributes: ['id', 'first_name', 'last_name', 'email'] }],
       order: [['created_at', 'DESC']],
     });
-    return res.json({ status: 'success', data: submissions });
+    return res.json({ status: 'success', data: { submissions: rows, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Failed to fetch KYC list.' });
   }
