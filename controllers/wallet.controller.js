@@ -191,10 +191,7 @@ const verifyFunding = async (req, res) => {
       return res.json({ status: 'success', message: 'Already processed.', data: { amount: pending.amount } });
     }
 
-    // Mark as processing to block concurrent requests
-    if (pending) {
-      await pending.update({ status: 'processing' }, { transaction: t });
-    }
+    // Row lock (FOR UPDATE) already prevents concurrent requests
 
     // Verify with Paystack
     const response = await axios.get(
