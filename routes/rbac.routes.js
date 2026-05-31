@@ -155,6 +155,7 @@ const modelCtrlPublic = require('../controllers/model.controller');
 router.get('/models/public', optionalAuth, modelCtrlPublic.listModels);
 
 // ── PROTECTED routes (token required from here down) ─────────────────────────
+const twofaCtrl = require('../controllers/twofa.controller');
 router.post('/auth/2fa/verify', twofaCtrl.verify2FA);
 router.use(authenticate);
 router.use(requirePasswordReset);
@@ -283,7 +284,6 @@ router.get('/admin/payouts', authenticate, checkPermission('payments.view'), asy
 router.get('/admin/payments',              authenticate, checkPermission('payments.view'),    paymentCtrl.adminListPayments);
 
 // ── 2FA ROUTES
-const twofaCtrl = require('../controllers/twofa.controller');
 router.get('/auth/2fa/status',   authenticate, twofaCtrl.get2FAStatus);
 router.get('/auth/2fa/setup',    authenticate, twofaCtrl.setup2FA);
 router.post('/auth/2fa/enable',  authenticate, twofaCtrl.enable2FA);
