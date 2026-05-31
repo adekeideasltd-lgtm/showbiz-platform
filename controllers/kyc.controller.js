@@ -84,8 +84,6 @@ const submitKYC = async (req, res) => {
 
 const adminListKYC = async (req, res) => {
   try {
-    const where = {};
-    if (req.query.status) where.status = req.query.status;
     const { page = 1, limit = 20, status } = req.query;
     const where = {};
     if (status) where.status = status;
@@ -93,7 +91,6 @@ const adminListKYC = async (req, res) => {
       where,
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit),
-      where,
       include: [{ model: db.User, as: 'user', attributes: ['id', 'first_name', 'last_name', 'email'] }],
       order: [['created_at', 'DESC']],
     });
