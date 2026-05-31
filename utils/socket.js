@@ -140,15 +140,27 @@ module.exports = (io) => {
     });
 
     // Delete message
-    socket.on('delete_message', async ({ messageId }) => {
+    socket.on('delete_message', async ({ messageId, deleteFor = 'everyone' }) => {
       try {
         const message = await db.Message.findByPk(messageId);
-        if (!message) return;
+        if (!message || message.is_deleted) return;
         const isAdmin = ['super_admin','admin','manager','moderator'].includes(socket.userRole);
         const isOwner = message.sender_id === socket.userId;
         if (!isOwner && !isAdmin) return socket.emit('error', { message: 'Not authorized.' });
-        await message.update({ body: '🚫 This message was deleted' });
-        io.to('conv:' + message.conversation_id).emit('message_deleted', { messageId });
+
+        // Time window — 60 min for non-admin
+        if (!isAdmin && isOwner) {
+          const age = (Date.now() - new Date(message.created_at).getTime()) / 60000;
+          if (age > 60 && deleteFor === 'everyone') {
+            return socket.emit('error', { message: 'Can only delete within 60 minutes.' });
+          }
+        }
+
+        const deletedBody = isAdmin ? '🚫 Deleted by admin' : '🚫 This message was deleted';
+        await message.update({ body: deletedBody, is_deleted: true, deleted_by: socket.userId, deleted_at: new Date(), deleted_for: deleteFor });
+        io.to('conv:' + message.conversation_id).emit('message_deleted', {
+          messageId, deletedBody, deleted_for: deleteFor, deleted_by: socket.userId
+        });
       } catch (err) { console.error('[delete_message]', err.message); }
     });
 

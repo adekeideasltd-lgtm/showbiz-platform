@@ -266,6 +266,10 @@ const Message = sequelize.define('Message', {
   body:            { type: DataTypes.TEXT, allowNull: false },
   is_read:         { type: DataTypes.BOOLEAN, defaultValue: false },
   read_at:         { type: DataTypes.DATE },
+  is_deleted:      { type: DataTypes.BOOLEAN, defaultValue: false },
+  deleted_by:      { type: DataTypes.UUID },
+  deleted_at:      { type: DataTypes.DATE },
+  deleted_for:     { type: DataTypes.STRING(20), defaultValue: 'everyone' },
 }, { tableName: 'messages', underscored: true });
 
 Conversation.belongsTo(User,    { foreignKey: 'participant_id', as: 'participant' });

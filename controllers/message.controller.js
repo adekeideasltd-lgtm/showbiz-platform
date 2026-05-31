@@ -203,7 +203,7 @@ const getConversation = async (req, res) => {
       include: [
         { model: db.User, as: 'participant', attributes: ['id','first_name','last_name','email'] },
         { model: db.Message, as: 'messages', order: [['created_at','ASC']],
-          attributes: ['id','body','sender_role','is_read','created_at','read_at'],
+          attributes: ['id','body','sender_role','is_read','created_at','read_at','is_deleted','deleted_for','deleted_by','deleted_at'],
           include: [{ model: db.User, as: 'sender', attributes: ['id','first_name','last_name'] }] },
       ],
     });
@@ -276,15 +276,67 @@ const getUnreadCount = async (req, res) => {
 
 const deleteMessage = async (req, res) => {
   try {
+    const { deleteFor = 'everyone' } = req.body; // 'me' or 'everyone'
     const message = await db.Message.findByPk(req.params.messageId);
     if (!message) return res.status(404).json({ status: 'error', message: 'Not found.' });
+    if (message.is_deleted) return res.status(400).json({ status: 'error', message: 'Already deleted.' });
+
     const isAdmin = ['super_admin','admin','manager','moderator'].some(r => req.user.roles.includes(r));
     const isOwner = message.sender_id === req.user.id;
-    if (!isOwner && !isAdmin) return res.status(403).json({ status: 'error', message: 'Not authorized.' });
-    await message.update({ body: '🚫 This message was deleted' });
-    return res.json({ status: 'success', message: 'Deleted.' });
+    if (!isOwner && !isAdmin) return res.status(403).json({ status: 'error', message: 'Not authorized to delete this message.' });
+
+    // Time window check — non-admin can only delete within 60 minutes
+    if (!isAdmin && isOwner) {
+      const ageMinutes = (Date.now() - new Date(message.created_at).getTime()) / 60000;
+      if (ageMinutes > 60 && deleteFor === 'everyone') {
+        return res.status(400).json({ status: 'error', message: 'You can only delete messages within 60 minutes of sending.' });
+      }
+    }
+
+    const deletedBody = isAdmin ? '🚫 Deleted by admin' : '🚫 This message was deleted';
+
+    if (deleteFor === 'everyone' || isAdmin) {
+      await message.update({
+        body:        deletedBody,
+        is_deleted:  true,
+        deleted_by:  req.user.id,
+        deleted_at:  new Date(),
+        deleted_for: 'everyone',
+      });
+
+      // Audit log for admin deletions
+      if (isAdmin) {
+        try {
+          await db.AuditLog.create({
+            id:          uuidv4(),
+            actor_id:    req.user.id,
+            actor_role:  req.user.roles[0],
+            action:      'message.deleted',
+            entity_type: 'Message',
+            entity_id:   message.id,
+            old_value:   { body: message.body.substring(0, 100) },
+            new_value:   { deleted_by: req.user.id, deleted_for: 'everyone' },
+            ip_address:  req.ip,
+          });
+        } catch {}
+      }
+
+      return res.json({
+        status: 'success',
+        message: 'Message deleted for everyone.',
+        data: { messageId: message.id, is_deleted: true, deleted_for: 'everyone', body: deletedBody }
+      });
+    } else {
+      // Delete for me only — just mark in response, no DB change
+      return res.json({
+        status: 'success',
+        message: 'Message hidden for you.',
+        data: { messageId: message.id, is_deleted: true, deleted_for: 'me' }
+      });
+    }
   } catch (err) {
-    return res.status(500).json({ status: 'error', message: 'Failed.' });
+    console.error('[deleteMessage]', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to delete message.' });
   }
 };
 
