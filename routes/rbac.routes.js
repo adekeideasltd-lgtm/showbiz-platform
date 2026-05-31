@@ -155,6 +155,7 @@ const modelCtrlPublic = require('../controllers/model.controller');
 router.get('/models/public', optionalAuth, modelCtrlPublic.listModels);
 
 // ── PROTECTED routes (token required from here down) ─────────────────────────
+router.post('/auth/2fa/verify', twofaCtrl.verify2FA);
 router.use(authenticate);
 router.use(requirePasswordReset);
 
@@ -287,7 +288,6 @@ router.get('/auth/2fa/status',   authenticate, twofaCtrl.get2FAStatus);
 router.get('/auth/2fa/setup',    authenticate, twofaCtrl.setup2FA);
 router.post('/auth/2fa/enable',  authenticate, twofaCtrl.enable2FA);
 router.post('/auth/2fa/disable', authenticate, twofaCtrl.disable2FA);
-router.post('/auth/2fa/verify',               twofaCtrl.verify2FA);
 
 // ── MODEL VIDEO ROUTES
 const { uploadIntroVideo, deleteIntroVideo, approveIntroVideo, rejectIntroVideo } = require('../controllers/model.controller');
