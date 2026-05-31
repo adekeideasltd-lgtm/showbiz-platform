@@ -205,9 +205,9 @@ const paystackWebhook = async (req, res) => {
         return;
       }
 
-      // Only process if pending or processing
+      // Only process if pending
       const pending = await db.WalletTransaction.findOne({
-        where: { reference: data.reference, status: { [db.Sequelize.Op.in]: ['pending','processing'] } },
+        where: { reference: data.reference, status: 'pending' },
       });
       if (pending) {
         const userId = data.metadata?.user_id;
