@@ -123,7 +123,7 @@ const approveWithdrawal = async (req, res) => {
       status:       'approved',
       processed_by: req.user.id,
       processed_at: new Date(),
-      admin_note:   req.body.note || 'Approved by admin.',
+      admin_note:   req.body?.note || 'Approved by admin.',
     });
 
     // Log audit
@@ -149,7 +149,7 @@ const approveWithdrawal = async (req, res) => {
 
     return res.json({ status: 'success', message: 'Withdrawal approved.' });
   } catch (err) {
-    console.error('[approveWithdrawal]', err.message);
+    console.error('[approveWithdrawal] FULL STACK:', err.stack);
     return res.status(500).json({ status: 'error', message: 'Failed.' });
   }
 };
@@ -222,7 +222,7 @@ const completeWithdrawal = async (req, res) => {
     await withdrawal.update({
       status:       'completed',
       processed_at: new Date(),
-      admin_note:   req.body.note || 'Payment transferred.',
+      admin_note:   req.body?.note || 'Payment transferred.',
     });
 
     // Notify user
