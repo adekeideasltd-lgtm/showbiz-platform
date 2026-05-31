@@ -11,7 +11,18 @@ const getOrCreateWallet = async (userId) => {
 };
 
 // ── Helper: credit wallet ─────────────────────────────────────────────────────
-const creditWallet = async (userId, amount, description, reference, metadata = {}) => {
+const creditWallet = async (userId, amount, description, reference, metadata = {}, t = null) => {
+  // Idempotency check — prevent double credit for same reference
+  if (reference) {
+    const existing = await db.WalletTransaction.findOne({
+      where: { reference, status: 'success' },
+      ...(t ? { transaction: t } : {}),
+    });
+    if (existing) {
+      console.log('[creditWallet] Already processed reference:', reference);
+      return await getOrCreateWallet(userId);
+    }
+  }
   const wallet = await getOrCreateWallet(userId);
   const balanceBefore = parseFloat(wallet.balance);
   const balanceAfter  = balanceBefore + parseFloat(amount);
@@ -152,35 +163,56 @@ const initiateFunding = async (req, res) => {
 
 // ── GET /api/wallet/verify/:reference ────────────────────────────────────────
 const verifyFunding = async (req, res) => {
+  const t = await db.sequelize.transaction();
   try {
     const { reference } = req.params;
+
+    // Lock the pending transaction row to prevent race conditions
+    const pending = await db.WalletTransaction.findOne({
+      where: { reference },
+      lock: t.LOCK.UPDATE,
+      transaction: t,
+    });
+
+    // Already successfully processed
+    if (pending?.status === 'success') {
+      await t.rollback();
+      return res.json({ status: 'success', message: 'Already processed.', data: { amount: pending.amount } });
+    }
+
+    // Mark as processing to block concurrent requests
+    if (pending) {
+      await pending.update({ status: 'processing' }, { transaction: t });
+    }
+
+    // Verify with Paystack
     const response = await axios.get(
       'https://api.paystack.co/transaction/verify/' + reference,
       { headers: { Authorization: 'Bearer ' + process.env.PAYSTACK_SECRET_KEY } }
     );
 
     const data = response.data.data;
-    if (data.status !== 'success')
+    if (data.status !== 'success') {
+      if (pending) await pending.update({ status: 'failed' }, { transaction: t });
+      await t.commit();
       return res.status(400).json({ status: 'error', message: 'Payment not successful.' });
+    }
 
     const userId = data.metadata?.user_id || req.user.id;
     const amount = data.amount / 100;
 
-    // Check if already processed
-    const existing = await db.WalletTransaction.findOne({
-      where: { reference, status: 'success' },
-    });
-    if (existing)
-      return res.json({ status: 'success', message: 'Already processed.', data: { amount } });
+    // Credit wallet within transaction
+    const wallet = await creditWallet(userId, amount, 'Wallet funding via Paystack', reference, { paystack_ref: reference }, t);
 
-    // Credit wallet
-    const wallet = await creditWallet(userId, amount, 'Wallet funding via Paystack', reference, { paystack_ref: reference });
+    // Update transaction record to success
+    if (pending) {
+      await pending.update({
+        status: 'success',
+        balance_after: parseFloat(wallet.balance),
+      }, { transaction: t });
+    }
 
-    // Update pending transaction
-    await db.WalletTransaction.update(
-      { status: 'success', balance_after: parseFloat(wallet.balance) },
-      { where: { reference, status: 'pending' } }
-    );
+    await t.commit();
 
     return res.json({
       status:  'success',
@@ -188,6 +220,7 @@ const verifyFunding = async (req, res) => {
       data:    { amount, new_balance: wallet.balance },
     });
   } catch (err) {
+    await t.rollback();
     console.error('[verifyFunding]', err.message);
     return res.status(500).json({ status: 'error', message: 'Failed to verify payment.' });
   }

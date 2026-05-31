@@ -196,20 +196,27 @@ const paystackWebhook = async (req, res) => {
     res.sendStatus(200);
     const { event, data } = req.body;
     if (event === 'charge.success' && data.reference?.startsWith('WALLET_')) {
-      // Use upsert-style check to prevent double credit
-      const [txn, created] = await db.WalletTransaction.findOrCreate({
+      // Atomic idempotency check — skip if already processed
+      const existing = await db.WalletTransaction.findOne({
         where: { reference: data.reference, status: 'success' },
-        defaults: { reference: data.reference, status: 'success' },
       });
-      if (created || txn) {
-        // Only credit if not already success
-        const pending = await db.WalletTransaction.findOne({ where: { reference: data.reference, status: { [db.Sequelize.Op.in]: ['pending', 'processing'] } } });
-        if (pending) {
-          const userId = data.metadata?.user_id;
-          if (userId) {
-            await creditWallet(userId, data.amount / 100, 'Wallet funding via Paystack (webhook)', data.reference, {});
-            await db.WalletTransaction.update({ status: 'success' }, { where: { reference: data.reference } });
-          }
+      if (existing) {
+        console.log('[Webhook] Already processed:', data.reference);
+        return;
+      }
+
+      // Only process if pending or processing
+      const pending = await db.WalletTransaction.findOne({
+        where: { reference: data.reference, status: { [db.Sequelize.Op.in]: ['pending','processing'] } },
+      });
+      if (pending) {
+        const userId = data.metadata?.user_id;
+        if (userId) {
+          await creditWallet(userId, data.amount / 100, 'Wallet funding via Paystack (webhook)', data.reference, {});
+          await db.WalletTransaction.update(
+            { status: 'success' },
+            { where: { reference: data.reference, status: { [db.Sequelize.Op.ne]: 'success' } } }
+          );
         }
       }
     }
