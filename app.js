@@ -18,6 +18,8 @@ app.use(cors());
 // Trust proxy — needed for correct IP detection behind load balancers
 app.set('trust proxy', 1);
 
+// Paystack webhook needs raw body for signature verification
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

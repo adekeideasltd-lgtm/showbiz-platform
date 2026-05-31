@@ -191,10 +191,14 @@ const adminPaymentStats = async (req, res) => {
 const paystackWebhook = async (req, res) => {
   try {
     const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
-    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(JSON.stringify(req.body)).digest('hex');
+    // Raw body required for accurate Paystack signature verification
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(rawBody).digest('hex');
     if (hash !== req.headers['x-paystack-signature']) return res.status(401).end();
     res.sendStatus(200);
-    const { event, data } = req.body;
+    // Parse payload from raw buffer or already-parsed body
+    const payload = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
+    const { event, data } = payload;
     if (event === 'charge.success' && data.reference?.startsWith('WALLET_')) {
       // Atomic idempotency check — skip if already processed
       const existing = await db.WalletTransaction.findOne({
