@@ -109,7 +109,7 @@ const adminConfirm = async (req, res) => {
       status:       'confirmed',
       confirmed_by: req.user.id,
       confirmed_at: new Date(),
-      admin_note:   req.body.note || null,
+      admin_note:   req.body?.note || null,
     }, { transaction: t });
 
     // Credit wallet (idempotent — safe to call)

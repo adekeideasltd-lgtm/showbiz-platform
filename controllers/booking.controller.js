@@ -217,12 +217,12 @@ const adminApproveBooking = async (req, res) => {
     const prev = booking.status;
     await booking.update({
       status: 'model_review',
-      admin_notes:       req.body.notes || null,
+      admin_notes:       req.body?.notes || null,
       reviewed_by_admin: req.user.id,
       reviewed_at_admin: new Date(),
     }, { transaction: t });
 
-    await logStatusChange(booking.id, prev, 'model_review', req.user.id, req.body.notes || 'Approved by admin. Sent to model for review.', t);
+    await logStatusChange(booking.id, prev, 'model_review', req.user.id, req.body?.notes || 'Approved by admin. Sent to model for review.', t);
     await t.commit();
 
     try {
@@ -358,7 +358,7 @@ const cancelBooking = async (req, res) => {
 
     const prev = booking.status;
     await booking.update({ status: 'cancelled' }, { transaction: t });
-    await logStatusChange(booking.id, prev, 'cancelled', req.user.id, req.body.reason || 'Cancelled by owner.', t);
+    await logStatusChange(booking.id, prev, 'cancelled', req.user.id, req.body?.reason || 'Cancelled by owner.', t);
     await updateModelAvailability(booking.model_id, booking.event_date, 'available', t);
     await t.commit();
 

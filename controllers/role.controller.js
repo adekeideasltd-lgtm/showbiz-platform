@@ -308,7 +308,7 @@ const assignRoleToUser = async (req, res) => {
       role_id: role.id,
       action: 'assigned',
       performed_by: req.user.id,
-      reason: req.body.reason || null,
+      reason: req.body?.reason || null,
     }, { transaction: t });
 
     await t.commit();
@@ -355,7 +355,7 @@ const revokeRoleFromUser = async (req, res) => {
       role_id: role.id,
       action: 'revoked',
       performed_by: req.user.id,
-      reason: req.body.reason || null,
+      reason: req.body?.reason || null,
     }, { transaction: t });
 
     await t.commit();

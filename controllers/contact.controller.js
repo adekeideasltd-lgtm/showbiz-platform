@@ -61,8 +61,8 @@ const updateContact = async (req, res) => {
     const submission = await db.ContactSubmission.findByPk(req.params.id);
     if (!submission) return res.status(404).json({ status: 'error', message: 'Not found.' });
     await submission.update({
-      status:     req.body.status     || submission.status,
-      admin_note: req.body.admin_note || submission.admin_note,
+      status:     req.body?.status     || submission.status,
+      admin_note: req.body?.admin_note || submission.admin_note,
     });
     return res.json({ status: 'success', message: 'Updated.', data: submission });
   } catch (err) {
