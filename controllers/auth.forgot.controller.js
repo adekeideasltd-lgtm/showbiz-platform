@@ -115,9 +115,10 @@ const resetPasswordViaLink = async (req, res) => {
     if (password !== confirm_password) { await t.rollback(); return res.status(400).json({ status: 'error', message: 'Passwords do not match.' }); }
     if (password.length < 8) { await t.rollback(); return res.status(400).json({ status: 'error', message: 'Password must be at least 8 characters.' }); }
 
-    // Find valid unused token
+    // Find valid unused token — verify by hash, not raw token
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const resetRecord = await db.PasswordReset.findOne({
-      where: { token, used_at: null },
+      where: { token_hash: tokenHash, used_at: null },
       include: [{ model: db.User, as: 'user' }],
       transaction: t,
     });
@@ -181,8 +182,9 @@ const verifyResetToken = async (req, res) => {
     const { token } = req.query;
     if (!token) return res.status(400).json({ status: 'error', message: 'Token is required.' });
 
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const resetRecord = await db.PasswordReset.findOne({
-      where: { token, used_at: null },
+      where: { token_hash: tokenHash, used_at: null },
       include: [{ model: db.User, as: 'user', attributes: ['id','first_name','email'] }],
     });
 
