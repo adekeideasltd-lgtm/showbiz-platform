@@ -1,8 +1,11 @@
 'use strict';
 const jwt = require('jsonwebtoken');
 const db  = require('../models');
+const onlineUsers = new Map();
 
+let _io;
 module.exports = (io) => {
+  _io = io;
   // Auth middleware for socket connections
   io.use(async (socket, next) => {
     try {
@@ -11,8 +14,12 @@ module.exports = (io) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user    = await db.User.findByPk(decoded.userId || decoded.id);
       if (!user) return next(new Error('User not found'));
-      socket.userId = user.id;
-      socket.user   = { id: user.id, email: user.email, firstName: user.first_name };
+      const roles = (await user.getRoles()).map(r => r.name);
+      const role  = roles.includes('super_admin') ? 'super_admin' : roles.includes('admin') ? 'admin' : roles.includes('model') ? 'model' : roles.includes('showbiz_owner') ? 'showbiz_owner' : roles[0];
+      socket.userId   = user.id;
+      socket.userRole = role;
+      socket.userName = user.first_name + ' ' + user.last_name;
+      socket.user     = { id: user.id, email: user.email, firstName: user.first_name };
       next();
     } catch (err) {
       next(new Error('Invalid token'));
@@ -24,6 +31,10 @@ module.exports = (io) => {
 
     // Join user's personal room
     socket.join(`user:${socket.userId}`);
+
+    // Track online presence
+    onlineUsers.set(socket.userId, { name: socket.userName, role: socket.userRole, since: new Date() });
+    io.emit('user_online', { userId: socket.userId, name: socket.userName });
 
     // Join a conversation room
     socket.on('join_conversation', async (conversationId) => {
@@ -128,7 +139,22 @@ module.exports = (io) => {
       }
     });
 
+    // Delete message
+    socket.on('delete_message', async ({ messageId }) => {
+      try {
+        const message = await db.Message.findByPk(messageId);
+        if (!message) return;
+        const isAdmin = ['super_admin','admin','manager','moderator'].includes(socket.userRole);
+        const isOwner = message.sender_id === socket.userId;
+        if (!isOwner && !isAdmin) return socket.emit('error', { message: 'Not authorized.' });
+        await message.update({ body: '🚫 This message was deleted' });
+        io.to('conv:' + message.conversation_id).emit('message_deleted', { messageId });
+      } catch (err) { console.error('[delete_message]', err.message); }
+    });
+
     socket.on('disconnect', () => {
+      onlineUsers.delete(socket.userId);
+      io.emit('user_offline', { userId: socket.userId, lastSeen: new Date() });
       console.log(`[Socket] Disconnected: ${socket.user?.email}`);
     });
   });

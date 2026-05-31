@@ -274,8 +274,77 @@ const getUnreadCount = async (req, res) => {
   }
 };
 
+const deleteMessage = async (req, res) => {
+  try {
+    const message = await db.Message.findByPk(req.params.messageId);
+    if (!message) return res.status(404).json({ status: 'error', message: 'Not found.' });
+    const isAdmin = ['super_admin','admin','manager','moderator'].some(r => req.user.roles.includes(r));
+    const isOwner = message.sender_id === req.user.id;
+    if (!isOwner && !isAdmin) return res.status(403).json({ status: 'error', message: 'Not authorized.' });
+    await message.update({ body: '🚫 This message was deleted' });
+    return res.json({ status: 'success', message: 'Deleted.' });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Failed.' });
+  }
+};
+
+const adminInitiateConversation = async (req, res) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const { target_user_id, subject, body } = req.body;
+    if (!target_user_id || !body) {
+      await t.rollback();
+      return res.status(400).json({ status: 'error', message: 'target_user_id and body required.' });
+    }
+    const target = await db.User.findByPk(target_user_id);
+    if (!target) { await t.rollback(); return res.status(404).json({ status: 'error', message: 'User not found.' }); }
+
+    const senderRole = ['super_admin','admin','manager','moderator'].find(r => req.user.roles.includes(r)) || 'admin';
+
+    // Check for existing open conversation with this target
+    const existing = await db.Conversation.findOne({
+      where: { participant_id: target_user_id, status: 'open' },
+      transaction: t,
+    });
+
+    let conversation = existing;
+    if (!existing) {
+      conversation = await db.Conversation.create({
+        id:               require('uuid').v4(),
+        participant_id:   target_user_id,
+        participant_role: (await target.getRoles()).map(r => r.name)[0] || 'user',
+        subject:          subject || 'Message from Admin',
+        status:           'open',
+        last_message_at:  new Date(),
+      }, { transaction: t });
+    }
+
+    const message = await db.Message.create({
+      id:              require('uuid').v4(),
+      conversation_id: conversation.id,
+      sender_id:       req.user.id,
+      sender_role:     senderRole,
+      body,
+      is_read:         false,
+    }, { transaction: t });
+
+    await conversation.update({ last_message_at: new Date() }, { transaction: t });
+    await t.commit();
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Conversation initiated.',
+      data: { conversation_id: conversation.id, message },
+    });
+  } catch (err) {
+    await t.rollback();
+    console.error('[adminInitiateConversation]', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed.' });
+  }
+};
+
 module.exports = {
   createConversation, replyToConversation,
   listConversations, getConversation,
-  closeConversation, getUnreadCount,
+  closeConversation, getUnreadCount, deleteMessage, adminInitiateConversation,
 };

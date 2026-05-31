@@ -256,6 +256,8 @@ router.get('/messages/conversations',             authenticate, msgCtrl.listConv
 router.post('/messages/conversations',            authenticate, messageLimiter, msgCtrl.createConversation);
 router.get('/messages/conversations/:id',         authenticate, msgCtrl.getConversation);
 router.post('/messages/conversations/:id/reply',  authenticate, messageLimiter, msgCtrl.replyToConversation);
+router.delete('/messages/:messageId',              authenticate, msgCtrl.deleteMessage);
+router.post('/messages/admin/initiate',           authenticate, requireRole('super_admin','admin','manager','moderator'), msgCtrl.adminInitiateConversation);
 router.post('/messages/conversations/:id/close',  authenticate, msgCtrl.closeConversation);
 
 // ── PAYMENT ROUTES ───────────────────────────────────────────────────────────
