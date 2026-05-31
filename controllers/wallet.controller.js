@@ -48,7 +48,18 @@ const creditWallet = async (userId, amount, description, reference, metadata = {
 };
 
 // ── Helper: debit wallet ──────────────────────────────────────────────────────
-const debitWallet = async (userId, amount, description, reference, metadata = {}) => {
+const debitWallet = async (userId, amount, description, reference, metadata = {}, t = null) => {
+  // Idempotency check — prevent double debit for same reference
+  if (reference) {
+    const existing = await db.WalletTransaction.findOne({
+      where: { reference, type: 'debit', status: 'success' },
+      ...(t ? { transaction: t } : {}),
+    });
+    if (existing) {
+      console.log('[debitWallet] Already processed reference:', reference);
+      return await getOrCreateWallet(userId);
+    }
+  }
   const wallet = await getOrCreateWallet(userId);
   const balanceBefore = parseFloat(wallet.balance);
   if (balanceBefore < parseFloat(amount))

@@ -88,28 +88,42 @@ const adminList = async (req, res) => {
 
 // ── POST /api/admin/bank-transfers/:id/confirm ────────────────────────────────
 const adminConfirm = async (req, res) => {
+  const t = await db.sequelize.transaction();
   try {
-    const transfer = await db.BankTransfer.findByPk(req.params.id);
-    if (!transfer) return res.status(404).json({ status: 'error', message: 'Not found.' });
-    if (transfer.status === 'confirmed')
+    // Lock row to prevent two admins confirming simultaneously
+    const transfer = await db.BankTransfer.findByPk(req.params.id, {
+      lock: t.LOCK.UPDATE,
+      transaction: t,
+    });
+    if (!transfer) { await t.rollback(); return res.status(404).json({ status: 'error', message: 'Not found.' }); }
+    if (transfer.status === 'confirmed') {
+      await t.rollback();
       return res.status(400).json({ status: 'error', message: 'Already confirmed.' });
+    }
+    if (transfer.status === 'rejected') {
+      await t.rollback();
+      return res.status(400).json({ status: 'error', message: 'Cannot confirm a rejected transfer.' });
+    }
 
     await transfer.update({
       status:       'confirmed',
       confirmed_by: req.user.id,
       confirmed_at: new Date(),
       admin_note:   req.body.note || null,
-    });
+    }, { transaction: t });
 
-    // Credit wallet
+    // Credit wallet (idempotent — safe to call)
     const walletCtrl = require('./wallet.controller');
     await walletCtrl.creditWallet(
       transfer.user_id,
       transfer.amount,
       'Bank transfer confirmed — Ref: ' + transfer.reference,
-      transfer.reference,
-      { transfer_id: transfer.id }
+      'BANK-' + transfer.reference,
+      { transfer_id: transfer.id },
+      t
     );
+
+    await t.commit();
 
     // Notify user
     const user = await db.User.findByPk(transfer.user_id);
@@ -122,6 +136,7 @@ const adminConfirm = async (req, res) => {
 
     return res.json({ status: 'success', message: 'Transfer confirmed and wallet credited.' });
   } catch (err) {
+    try { await t.rollback(); } catch {}
     console.error('[adminConfirm]', err.message);
     return res.status(500).json({ status: 'error', message: 'Failed to confirm transfer.' });
   }
