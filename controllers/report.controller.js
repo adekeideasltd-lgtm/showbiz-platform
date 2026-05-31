@@ -179,9 +179,20 @@ const adminReplyReport = async (req, res) => {
 // ── PUT /api/admin/reports/:id/status ────────────────────────────────────────
 const adminUpdateStatus = async (req, res) => {
   try {
+    const { status, priority } = req.body;
     const report = await db.Report.findByPk(req.params.id);
     if (!report) return res.status(404).json({ status: 'error', message: 'Report not found.' });
-    await report.update({ status: req.body.status, priority: req.body.priority || report.priority });
+    await report.update({ status, priority: priority || report.priority });
+    // Notify user of status change
+    try {
+      const user = await db.User.findByPk(report.user_id);
+      const notify = require('../utils/email/notifications');
+      if (user) await notify.sendEmail({
+        to: user.email,
+        subject: `Report Update — ${report.subject}`,
+        html: `<p>Hi ${user.first_name},</p><p>Your report status has been updated to: <strong>${status.replace(/_/g,' ').toUpperCase()}</strong>.</p>`,
+      });
+    } catch {}
     return res.json({ status: 'success', message: 'Status updated.' });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Failed to update.' });
