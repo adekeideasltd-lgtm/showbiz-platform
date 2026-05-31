@@ -276,7 +276,7 @@ const onNewBookingAdmin = async (booking, owner, model) => {
      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Event</td><td style="padding:8px;font-weight:600;">${booking.event_title}</td></tr>
        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Date</td><td style="padding:8px;">${booking.event_date}</td></tr>
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Amount</td><td style="padding:8px;font-weight:700;color:#C9A84C;">₦${parseFloat(booking.total_amount).toLocaleString()}</td></tr>
+       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Your Payout</td><td style="padding:8px;font-weight:700;color:#C9A84C;">₦${parseFloat(booking.model_payout || booking.total_amount).toLocaleString()}</td></tr>
      </table>
      <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/bookings" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Review Booking</a></div>`
   );
