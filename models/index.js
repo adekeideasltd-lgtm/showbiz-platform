@@ -155,6 +155,7 @@ const ModelAvailability = sequelize.define('ModelAvailability', {
   model_id:     { type: DataTypes.UUID, allowNull: false },
   date:         { type: DataTypes.DATEONLY, allowNull: false },
   is_available: { type: DataTypes.BOOLEAN, defaultValue: true },
+  status:       { type: DataTypes.STRING(20), defaultValue: 'available' },
   note:         { type: DataTypes.STRING(255) },
 }, { tableName: 'model_availability', underscored: true });
 

@@ -23,12 +23,18 @@ const logStatusChange = async (bookingId, fromStatus, toStatus, changedBy, note 
 const updateModelAvailability = async (modelId, eventDate, status, t) => {
   try {
     const is_available = status === 'available';
-    await db.ModelAvailability.upsert({
-      model_id:     modelId,
-      date:         eventDate,
-      status:       status,
-      is_available: is_available,
-    }, { transaction: t });
+    // Check if record exists first
+    const existing = await db.ModelAvailability.findOne({
+      where: { model_id: modelId, date: eventDate },
+      ...(t ? { transaction: t } : {}),
+    });
+    if (existing) {
+      await existing.update({ status, is_available }, t ? { transaction: t } : {});
+    } else {
+      await db.ModelAvailability.create({
+        model_id: modelId, date: eventDate, status, is_available,
+      }, t ? { transaction: t } : {});
+    }
   } catch (e) { console.error('[updateModelAvailability]', e.message); }
 };
 
