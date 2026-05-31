@@ -32,18 +32,34 @@ const creditWallet = async (userId, amount, description, reference, metadata = {
     const user = await db.User.findByPk(userId);
     if (user) require('../utils/email/notifications').onWalletCredited(user, amount, description).catch(() => {});
   } catch {}
-  await db.WalletTransaction.create({
-    wallet_id:      wallet.id,
-    user_id:        userId,
-    type:           'credit',
-    amount,
-    balance_before: balanceBefore,
-    balance_after:  balanceAfter,
-    description,
-    reference,
-    status:         'success',
-    metadata,
-  });
+  // Update existing pending record if exists, otherwise create new
+  const existingTxn = reference ? await db.WalletTransaction.findOne({
+    where: { reference },
+    ...(t ? { transaction: t } : {}),
+  }) : null;
+
+  if (existingTxn) {
+    await existingTxn.update({
+      status:         'success',
+      balance_before: balanceBefore,
+      balance_after:  balanceAfter,
+      description,
+      metadata,
+    }, t ? { transaction: t } : {});
+  } else {
+    await db.WalletTransaction.create({
+      wallet_id:      wallet.id,
+      user_id:        userId,
+      type:           'credit',
+      amount,
+      balance_before: balanceBefore,
+      balance_after:  balanceAfter,
+      description,
+      reference,
+      status:         'success',
+      metadata,
+    }, t ? { transaction: t } : {});
+  }
   return wallet;
 };
 
@@ -212,14 +228,6 @@ const verifyFunding = async (req, res) => {
     // Credit wallet within transaction
     const wallet = await creditWallet(userId, amount, 'Wallet funding via Paystack', reference, { paystack_ref: reference }, t);
 
-    // Update transaction record to success
-    if (pending) {
-      await pending.update({
-        status: 'success',
-        balance_after: parseFloat(wallet.balance),
-      }, { transaction: t });
-    }
-
     await t.commit();
 
     return res.json({
@@ -229,7 +237,8 @@ const verifyFunding = async (req, res) => {
     });
   } catch (err) {
     await t.rollback();
-    console.error('[verifyFunding]', err.message);
+    console.error('[verifyFunding] FULL ERROR:', err.stack || err);
+    console.error('[verifyFunding] DB ERRORS:', JSON.stringify(err.errors || err.original || err.parent));
     return res.status(500).json({ status: 'error', message: 'Failed to verify payment.' });
   }
 };
