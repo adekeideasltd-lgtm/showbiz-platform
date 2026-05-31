@@ -345,4 +345,60 @@ router.post('/admin/withdrawals/:id/approve',  authenticate, checkPermission('us
 router.post('/admin/withdrawals/:id/reject',   authenticate, checkPermission('users.manage'), withdrawalCtrl.rejectWithdrawal);
 router.post('/admin/withdrawals/:id/complete', authenticate, checkPermission('users.manage'), withdrawalCtrl.completeWithdrawal);
 
+// Super Admin impersonation
+router.post('/admin/impersonate/:userId', authenticate, isSuperAdmin, async (req, res) => {
+  try {
+    const db = require('../models');
+    const jwt = require('jsonwebtoken');
+    const target = await db.User.findByPk(req.params.userId, {
+      include: [{ model: db.Role, as: 'roles', through: { attributes: [] } }]
+    });
+    if (!target) return res.status(404).json({ status: 'error', message: 'User not found.' });
+
+    // Prevent impersonating another super admin
+    const targetRoles = target.roles.map(r => r.name);
+    if (targetRoles.includes('super_admin'))
+      return res.status(403).json({ status: 'error', message: 'Cannot impersonate Super Admin.' });
+
+    // Generate token for target user
+    const token = jwt.sign(
+      { userId: target.id, impersonatedBy: req.user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '2h' }
+    );
+
+    // Audit log
+    try {
+      await db.AuditLog.create({
+        id: require('uuid').v4(),
+        actor_id: req.user.id,
+        actor_role: 'super_admin',
+        action: 'user.impersonated',
+        entity_type: 'User',
+        entity_id: target.id,
+        ip_address: req.ip,
+        new_values: { target_email: target.email, target_roles: targetRoles },
+      });
+    } catch {}
+
+    return res.json({
+      status: 'success',
+      message: `Now impersonating ${target.first_name} ${target.last_name}`,
+      data: {
+        token,
+        user: {
+          id: target.id,
+          first_name: target.first_name,
+          last_name: target.last_name,
+          email: target.email,
+          roles: targetRoles,
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[impersonate]', err.message);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 module.exports = router;
