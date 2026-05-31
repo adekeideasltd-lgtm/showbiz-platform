@@ -72,6 +72,7 @@ module.exports = (io) => {
           id:              message.id,
           conversation_id: conversationId,
           sender_id:       socket.userId,
+          sender_role:     message.sender_role,
           sender:          sender,
           body:            message.body,
           is_read:         false,

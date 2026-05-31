@@ -203,6 +203,7 @@ const getConversation = async (req, res) => {
       include: [
         { model: db.User, as: 'participant', attributes: ['id','first_name','last_name','email'] },
         { model: db.Message, as: 'messages', order: [['created_at','ASC']],
+          attributes: ['id','body','sender_role','is_read','created_at','read_at'],
           include: [{ model: db.User, as: 'sender', attributes: ['id','first_name','last_name'] }] },
       ],
     });
