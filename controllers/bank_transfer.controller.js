@@ -134,6 +134,12 @@ const adminConfirm = async (req, res) => {
       }
     }
 
+    try {
+      const { createAuditLog } = require('../utils/audit');
+      await createAuditLog({ actorId: req.user.id, actorRole: req.user.roles?.[0] || 'admin',
+        action: 'bank_transfer.confirmed', entityType: 'BankTransfer', entityId: transfer.id,
+        ipAddress: req.ip, newValue: { amount: transfer.amount, reference: transfer.reference } });
+    } catch {}
     return res.json({ status: 'success', message: 'Transfer confirmed and wallet credited.' });
   } catch (err) {
     try { await t.rollback(); } catch {}
@@ -156,6 +162,12 @@ const adminReject = async (req, res) => {
       confirmed_at: new Date(),
     });
 
+    try {
+      const { createAuditLog } = require('../utils/audit');
+      await createAuditLog({ actorId: req.user.id, actorRole: req.user.roles?.[0] || 'admin',
+        action: 'bank_transfer.rejected', entityType: 'BankTransfer', entityId: transfer.id,
+        ipAddress: req.ip, newValue: { reason, reference: transfer.reference } });
+    } catch {}
     return res.json({ status: 'success', message: 'Transfer rejected.' });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Failed to reject.' });

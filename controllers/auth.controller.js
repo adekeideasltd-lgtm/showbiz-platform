@@ -37,6 +37,12 @@ const login = async (req, res) => {
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
+      try {
+        const { createAuditLog } = require('../utils/audit');
+        await createAuditLog({ actorId: user.id, actorRole: 'unknown', action: 'user.login_failed',
+          entityType: 'User', entityId: user.id, ipAddress: req.ip, userAgent: req.headers['user-agent'],
+          newValue: { reason: 'invalid_password' } });
+      } catch {}
       return res.status(401).json({ status: 'error', message: 'Invalid email or password.' });
     }
 
@@ -84,6 +90,12 @@ const login = async (req, res) => {
 
     // Update last login
     await user.update({ last_login_at: new Date(), last_login_ip: req.ip });
+    try {
+      const { createAuditLog } = require('../utils/audit');
+      await createAuditLog({ actorId: user.id, actorRole: roleNames[0] || 'user', action: 'user.login',
+        entityType: 'User', entityId: user.id, ipAddress: req.ip, userAgent: req.headers['user-agent'],
+        newValue: { roles: roleNames } });
+    } catch {}
 
     return res.json({
       status: 'success',

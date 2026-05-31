@@ -194,4 +194,48 @@ const exportContacts = async (req, res) => {
   }
 };
 
-module.exports = { exportBookings, exportPayments, exportUsers, exportKYC, exportContacts };
+const exportAuditLogs = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const where = {};
+    if (from || to) { where.created_at = {}; }
+    if (from) where.created_at[Op.gte] = new Date(from);
+    if (to)   where.created_at[Op.lte] = new Date(to);
+    const logs = await db.AuditLog.findAll({
+      where, order: [['created_at','DESC']], limit: 5000,
+    });
+    const data = logs.map(l => ({
+      id: l.id, actor_id: l.actor_id, actor_role: l.actor_role,
+      action: l.action, entity_type: l.entity_type, entity_id: l.entity_id,
+      ip_address: l.ip_address,
+      old_value: l.old_value ? JSON.stringify(l.old_value) : '',
+      new_value: l.new_value ? JSON.stringify(l.new_value) : '',
+      created_at: l.created_at,
+    }));
+    return sendCSV(res, data, ['id','actor_id','actor_role','action','entity_type','entity_id','ip_address','old_value','new_value','created_at'], 'audit-logs');
+  } catch (err) { return res.status(500).json({ status: 'error', message: 'Export failed.' }); }
+};
+
+const exportWalletTransactions = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const where = { status: 'success' };
+    if (from || to) { where.created_at = {}; }
+    if (from) where.created_at[Op.gte] = new Date(from);
+    if (to)   where.created_at[Op.lte] = new Date(to);
+    const txns = await db.WalletTransaction.findAll({
+      where, order: [['created_at','DESC']], limit: 10000,
+      include: [{ model: db.User, as: 'user', attributes: ['first_name','last_name','email'], required: false }],
+    });
+    const data = txns.map(t => ({
+      id: t.id,
+      user: t.user ? t.user.email : t.user_id,
+      type: t.type, amount: t.amount,
+      balance_before: t.balance_before, balance_after: t.balance_after,
+      description: t.description, reference: t.reference, created_at: t.created_at,
+    }));
+    return sendCSV(res, data, ['id','user','type','amount','balance_before','balance_after','description','reference','created_at'], 'wallet-transactions');
+  } catch (err) { return res.status(500).json({ status: 'error', message: 'Export failed.' }); }
+};
+
+module.exports = { exportBookings, exportPayments, exportUsers, exportKYC, exportContacts, exportAuditLogs, exportWalletTransactions };

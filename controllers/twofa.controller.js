@@ -57,6 +57,12 @@ const enable2FA = async (req, res) => {
     const backupCodes = Array.from({ length: 8 }, () => crypto.randomBytes(4).toString('hex').toUpperCase());
 
     await user.update({ two_fa_enabled: true, two_fa_backup_codes: backupCodes });
+    try {
+      const { createAuditLog } = require('../utils/audit');
+      await createAuditLog({ actorId: req.user.id, actorRole: req.user.roles?.[0] || 'user',
+        action: 'user.2fa_enabled', entityType: 'User', entityId: req.user.id,
+        ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+    } catch {}
 
     return res.json({
       status: 'success',
@@ -88,6 +94,12 @@ const disable2FA = async (req, res) => {
     if (!verified) return res.status(400).json({ status: 'error', message: 'Invalid token.' });
 
     await user.update({ two_fa_enabled: false, two_fa_secret: null, two_fa_backup_codes: null });
+    try {
+      const { createAuditLog } = require('../utils/audit');
+      await createAuditLog({ actorId: req.user.id, actorRole: req.user.roles?.[0] || 'user',
+        action: 'user.2fa_disabled', entityType: 'User', entityId: req.user.id,
+        ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+    } catch {}
 
     return res.json({ status: 'success', message: '2FA disabled.' });
   } catch (err) {

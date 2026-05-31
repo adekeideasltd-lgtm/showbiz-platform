@@ -73,6 +73,7 @@ const AuditLog = sequelize.define('AuditLog', {
   ip_address:  { type: DataTypes.STRING(45) },
   user_agent:  { type: DataTypes.TEXT },
 }, { tableName: 'audit_logs', underscored: true, updatedAt: false });
+AuditLog.belongsTo(User, { foreignKey: 'actor_id', as: 'actor' });
 
 const RoleAssignmentHistory = sequelize.define('RoleAssignmentHistory', {
   id:           { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },

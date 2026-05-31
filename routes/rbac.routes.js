@@ -96,6 +96,8 @@ router.get('/admin/export/bookings',  authenticate, checkPermission('bookings.vi
 router.get('/admin/export/payments',  authenticate, checkPermission('payments.view'),  exportCtrl.exportPayments);
 router.get('/admin/export/users',     authenticate, checkPermission('users.view'),     exportCtrl.exportUsers);
 router.get('/admin/export/kyc',       authenticate, checkPermission('users.manage'),   exportCtrl.exportKYC);
+router.get('/admin/export/audit-logs',          authenticate, isSuperAdmin, exportCtrl.exportAuditLogs);
+router.get('/admin/export/wallet-transactions', authenticate, checkPermission('payments.view'), exportCtrl.exportWalletTransactions);
 router.get('/admin/export/contacts',  authenticate, checkPermission('users.manage'),   exportCtrl.exportContacts);
 
 // ── SETTINGS ROUTES ───────────────────────────────────────────────────────────
