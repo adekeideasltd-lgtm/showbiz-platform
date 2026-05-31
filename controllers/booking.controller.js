@@ -18,6 +18,20 @@ const logStatusChange = async (bookingId, fromStatus, toStatus, changedBy, note 
 };
 
 // ── POST /api/bookings — showbiz owner creates booking request ────────────────
+
+// ── Helper: update model availability status for a date ──────────────────────
+const updateModelAvailability = async (modelId, eventDate, status, t) => {
+  try {
+    const is_available = status === 'available';
+    await db.ModelAvailability.upsert({
+      model_id:     modelId,
+      date:         eventDate,
+      status:       status,
+      is_available: is_available,
+    }, { transaction: t });
+  } catch (e) { console.error('[updateModelAvailability]', e.message); }
+};
+
 const createBooking = async (req, res) => {
   const t = await db.sequelize.transaction();
   try {
@@ -44,6 +58,17 @@ const createBooking = async (req, res) => {
       where: { model_id, date: event_date, is_available: false }, transaction: t,
     });
     if (unavailable) { await t.rollback(); return res.status(409).json({ status: 'error', message: 'Model is not available on this date.' }); }
+
+    // Double-booking prevention
+    const existingBooking = await db.Booking.findOne({
+      where: {
+        model_id:   model_id,
+        event_date: event_date,
+        status:     { [require('sequelize').Op.notIn]: ['cancelled','rejected_by_admin','rejected_by_model'] },
+      },
+      transaction: t,
+    });
+    if (existingBooking) { await t.rollback(); return res.status(409).json({ status: 'error', message: 'Model already has a booking for this date.' }); }
 
     const total_amount = duration_hours && agreed_rate
       ? parseFloat(duration_hours) * parseFloat(agreed_rate)
@@ -244,6 +269,7 @@ const modelAcceptBooking = async (req, res) => {
     if (!profile || booking.model_id !== profile.id) { await t.rollback(); return res.status(403).json({ status: 'error', message: 'This booking is not for you.' }); }
 
     const prev = booking.status;
+    await updateModelAvailability(booking.model_id, booking.event_date, 'booked', t);
     await booking.update({ status: 'confirmed', model_response_at: new Date() }, { transaction: t });
     await logStatusChange(booking.id, prev, 'confirmed', req.user.id, 'Accepted by model.', t);
     await t.commit();
@@ -300,6 +326,7 @@ const completeBooking = async (req, res) => {
     const prev = booking.status;
     await booking.update({ status: 'completed', completed_at: new Date() }, { transaction: t });
     await logStatusChange(booking.id, prev, 'completed', req.user.id, 'Event completed.', t);
+    await updateModelAvailability(booking.model_id, booking.event_date, 'available', t);
     await t.commit();
 
     return res.json({ status: 'success', message: 'Booking marked as completed.' });
@@ -326,6 +353,7 @@ const cancelBooking = async (req, res) => {
     const prev = booking.status;
     await booking.update({ status: 'cancelled' }, { transaction: t });
     await logStatusChange(booking.id, prev, 'cancelled', req.user.id, req.body.reason || 'Cancelled by owner.', t);
+    await updateModelAvailability(booking.model_id, booking.event_date, 'available', t);
     await t.commit();
 
     return res.json({ status: 'success', message: 'Booking cancelled.' });
