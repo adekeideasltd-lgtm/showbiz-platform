@@ -59,7 +59,7 @@ module.exports = (io) => {
         const message = await db.Message.create({
           conversation_id: conversationId,
           sender_id:       socket.userId,
-          content:         content.trim(),
+          body:            content.trim(),
           is_read:         false,
         });
 
@@ -73,7 +73,7 @@ module.exports = (io) => {
           conversation_id: conversationId,
           sender_id:       socket.userId,
           sender:          sender,
-          content:         message.content,
+          body:            message.body,
           is_read:         false,
           createdAt:       message.createdAt,
         };
