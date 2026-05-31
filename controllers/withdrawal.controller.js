@@ -142,7 +142,7 @@ const approveWithdrawal = async (req, res) => {
           to: withdrawal.user.email,
           subject: '✅ Withdrawal Approved — Showbiz Platform',
           html: `<p>Hi ${withdrawal.user.first_name},</p>
-            <p>Your withdrawal request of <strong>₦${parseFloat(withdrawal.amount).toLocaleString()}</strong> has been approved and will be transferred to your ${withdrawal.bank_name} account ending in ${withdrawal.account_number.slice(-4)} within 24 hours.</p>`,
+            <p>Your withdrawal request of <strong>₦${parseFloat(withdrawal.amount).toLocaleString()}</strong> has been approved and will be transferred to your ${withdrawal.bank_name || 'registered'} account${withdrawal.account_number ? ' ending in ' + withdrawal.account_number.slice(-4) : ''} within 24 hours.</p>`,
         });
       }
     } catch {}
