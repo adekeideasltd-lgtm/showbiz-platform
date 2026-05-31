@@ -98,36 +98,95 @@ const disable2FA = async (req, res) => {
 // ── POST /api/auth/2fa/verify — verify token during login ─────────────────────
 const verify2FA = async (req, res) => {
   try {
-    const { token, backup_code, user_id } = req.body;
-    if (!user_id) return res.status(400).json({ status: 'error', message: 'User ID required.' });
+    const { token, backup_code, temp_token } = req.body;
+    if (!temp_token) return res.status(400).json({ status: 'error', message: 'Temporary token required.' });
 
-    const user = await db.User.findByPk(user_id);
+    // Verify temp token
+    let decoded;
+    try {
+      const jwt = require('jsonwebtoken');
+      decoded = jwt.verify(temp_token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ status: 'error', message: 'Verification session expired. Please log in again.' });
+    }
+    if (!decoded.pending_2fa) return res.status(401).json({ status: 'error', message: 'Invalid verification session.' });
+
+    const user = await db.User.findByPk(decoded.userId, {
+      include: [{ model: db.Role, as: 'roles', through: { attributes: [] },
+        include: [{ model: db.Permission, as: 'permissions', through: { attributes: [] } }] }],
+    });
     if (!user?.two_fa_enabled) return res.status(400).json({ status: 'error', message: '2FA not enabled.' });
+
+    // Check lockout
+    if (user.otp_locked_until && new Date() < new Date(user.otp_locked_until)) {
+      const remaining = Math.ceil((new Date(user.otp_locked_until) - new Date()) / 60000);
+      return res.status(429).json({ status: 'error', code: 'ACCOUNT_LOCKED', message: `Too many failed attempts. Try again in ${remaining} minute(s).` });
+    }
+
+    const MAX_ATTEMPTS = 5;
+    const LOCKOUT_MINUTES = 15;
 
     // Check backup code
     if (backup_code) {
       const codes = user.two_fa_backup_codes || [];
       const idx   = codes.indexOf(backup_code.toUpperCase());
-      if (idx === -1) return res.status(400).json({ status: 'error', message: 'Invalid backup code.' });
-      // Remove used backup code
+      if (idx === -1) {
+        const attempts = (user.otp_attempt_count || 0) + 1;
+        const locked = attempts >= MAX_ATTEMPTS ? new Date(Date.now() + LOCKOUT_MINUTES * 60000) : null;
+        await user.update({ otp_attempt_count: attempts, otp_locked_until: locked });
+        return res.status(400).json({ status: 'error', message: `Invalid backup code. ${MAX_ATTEMPTS - attempts} attempts remaining.` });
+      }
       codes.splice(idx, 1);
-      await user.update({ two_fa_backup_codes: codes });
-      return res.json({ status: 'success', message: '2FA verified via backup code.' });
+      await user.update({ two_fa_backup_codes: codes, otp_attempt_count: 0, otp_locked_until: null });
+    } else {
+      if (!token) return res.status(400).json({ status: 'error', message: 'Token required.' });
+      const verified = speakeasy.totp.verify({
+        secret: user.two_fa_secret, encoding: 'base32', token, window: 2,
+      });
+      if (!verified) {
+        const attempts = (user.otp_attempt_count || 0) + 1;
+        const locked = attempts >= MAX_ATTEMPTS ? new Date(Date.now() + LOCKOUT_MINUTES * 60000) : null;
+        await user.update({ otp_attempt_count: attempts, otp_locked_until: locked });
+        return res.status(400).json({ status: 'error', message: `Invalid code. ${MAX_ATTEMPTS - attempts} attempt(s) remaining.` });
+      }
+      await user.update({ otp_attempt_count: 0, otp_locked_until: null });
     }
 
-    if (!token) return res.status(400).json({ status: 'error', message: 'Token required.' });
+    // Issue full JWT
+    const jwt = require('jsonwebtoken');
+    const roleNames = user.roles.map(r => r.name);
+    const permissions = new Set();
+    for (const role of user.roles) {
+      if (role.name === 'super_admin') { permissions.add('*'); break; }
+      for (const perm of role.permissions) permissions.add(perm.name);
+    }
+    const accessToken = jwt.sign(
+      { userId: user.id, email: user.email, roles: roleNames },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+    );
+    const refreshToken = jwt.sign(
+      { userId: user.id, type: 'refresh' },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+    );
+    await user.update({ last_login_at: new Date(), last_login_ip: null });
 
-    const verified = speakeasy.totp.verify({
-      secret:   user.two_fa_secret,
-      encoding: 'base32',
-      token,
-      window:   2,
+    return res.json({
+      status: 'success',
+      message: '2FA verified successfully.',
+      data: {
+        accessToken, refreshToken,
+        user: {
+          id: user.id, email: user.email,
+          firstName: user.first_name, lastName: user.last_name,
+          roles: roleNames, permissions: [...permissions],
+          isSuperAdmin: roleNames.includes('super_admin'),
+        },
+      },
     });
-
-    if (!verified) return res.status(400).json({ status: 'error', message: 'Invalid token.' });
-
-    return res.json({ status: 'success', message: '2FA verified.' });
   } catch (err) {
+    console.error('[verify2FA]', err.message);
     return res.status(500).json({ status: 'error', message: 'Failed to verify 2FA.' });
   }
 };

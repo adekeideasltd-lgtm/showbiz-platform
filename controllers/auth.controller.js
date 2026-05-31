@@ -40,6 +40,29 @@ const login = async (req, res) => {
       return res.status(401).json({ status: 'error', message: 'Invalid email or password.' });
     }
 
+    // ── 2FA Check ────────────────────────────────────────────────────────
+    if (user.two_fa_enabled) {
+      // Check if account is locked
+      if (user.otp_locked_until && new Date() < new Date(user.otp_locked_until)) {
+        const remaining = Math.ceil((new Date(user.otp_locked_until) - new Date()) / 60000);
+        return res.status(429).json({ status: 'error', code: 'ACCOUNT_LOCKED', message: `Too many failed attempts. Try again in ${remaining} minute(s).` });
+      }
+      // Issue temporary token for 2FA verification
+      const tempToken = jwt.sign(
+        { userId: user.id, pending_2fa: true },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+      return res.json({
+        status: 'success',
+        data: {
+          requires_2fa: true,
+          temp_token:   tempToken,
+          user_id:      user.id,
+        },
+      });
+    }
+
     const roleNames = user.roles.map(r => r.name);
     const permissions = new Set();
     for (const role of user.roles) {
