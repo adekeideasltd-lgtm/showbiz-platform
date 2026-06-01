@@ -227,7 +227,6 @@ const adminApproveBooking = async (req, res) => {
 
     try {
       const b = await db.Booking.findByPk(booking.id, { include: [{ model: db.User, as: 'owner' }, { model: db.ModelProfile, as: 'model', include: [{ model: db.User, as: 'user' }] }] });
-      console.log('[approveBooking] model user:', b?.model?.user?.email, 'owner:', b?.owner?.email);
       if (b?.model?.user && b?.owner) {
         notify.onBookingApprovedByAdmin(b, b.model.user, b.owner).catch(console.error);
       } else {
