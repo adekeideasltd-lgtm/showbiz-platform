@@ -262,9 +262,9 @@ const getAvailability = async (req, res) => {
 // ── ADMIN: GET /api/admin/models — all models with status filter ──────────────
 const adminListModels = async (req, res) => {
   try {
-    const { status = 'pending', page = 1, limit = 20 } = req.query;
+    const { status, page = 1, limit = 20 } = req.query;
     const where = {};
-    if (status !== 'all') where.status = status;
+    if (status && status !== 'all') where.status = status;
 
     const { count, rows } = await db.ModelProfile.findAndCountAll({
       where,
