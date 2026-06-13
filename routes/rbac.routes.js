@@ -122,6 +122,7 @@ router.get('/wallet/transactions',             authenticate, walletCtrl.getTrans
 router.post('/wallet/fund',                    authenticate, walletCtrl.initiateFunding);
 router.get('/wallet/verify/:reference',        authenticate, walletCtrl.verifyFunding);
 router.get('/admin/wallets',                   authenticate, checkPermission('payments.view'), walletCtrl.adminListWallets);
+router.get('/admin/cancellation-ledger',       authenticate, checkPermission('payments.view'), walletCtrl.adminCancellationLedger);
 router.post('/admin/wallets/:userId/credit',   authenticate, checkPermission('payments.manage'), walletCtrl.adminCredit);
 router.post('/admin/wallets/:userId/debit',    authenticate, checkPermission('payments.manage'), walletCtrl.adminDebit);
 

@@ -243,6 +243,35 @@ const verifyFunding = async (req, res) => {
   }
 };
 
+// ── GET /api/admin/cancellation-ledger ─────────────────────────────────────────
+const adminCancellationLedger = async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const { Op } = require('sequelize');
+    let pattern;
+    if (req.query.type === 'refund') pattern = 'refund-%';
+    else if (req.query.type === 'killfee') pattern = 'killfee-%';
+    else if (req.query.type === 'collection') pattern = 'cancel-collection-%';
+    else pattern = '%cancel%';
+
+    const { count, rows } = await db.WalletTransaction.findAndCountAll({
+      where: {
+        reference: { [Op.iLike]: pattern },
+      },
+      include: [{ model: db.User, as: 'user', attributes: ['id','first_name','last_name','email'] }],
+      order: [['created_at','DESC']],
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit),
+    });
+    return res.json({
+      status: 'success',
+      data: { transactions: rows, pagination: { total: count, page: parseInt(page), pages: Math.ceil(count / parseInt(limit)) } },
+    });
+  } catch (err) {
+    console.error('[adminCancellationLedger] ERROR:', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch cancellation ledger.' });
+  }
+};
 // ── GET /api/admin/wallets ────────────────────────────────────────────────────
 const adminListWallets = async (req, res) => {
   try {
@@ -284,6 +313,6 @@ const adminDebit = async (req, res) => {
 
 module.exports = {
   getWallet, getTransactions, initiateFunding, verifyFunding,
-  adminListWallets, adminCredit, adminDebit,
+  adminListWallets, adminCancellationLedger, adminCredit, adminDebit,
   creditWallet, debitWallet, getOrCreateWallet,
 };
