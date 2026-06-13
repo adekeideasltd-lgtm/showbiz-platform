@@ -174,6 +174,8 @@ const Booking = sequelize.define('Booking', {
   event_date:     { type: DataTypes.DATEONLY, allowNull: false },
   event_end_date: { type: DataTypes.DATEONLY },
   event_location: { type: DataTypes.STRING(255) },
+  event_lat:      { type: DataTypes.DECIMAL(10,6) },
+  event_lng:      { type: DataTypes.DECIMAL(10,6) },
   event_details:  { type: DataTypes.TEXT },
   duration_hours: { type: DataTypes.DECIMAL(5,2) },
   agreed_rate:    { type: DataTypes.DECIMAL(10,2) },

@@ -27,6 +27,7 @@ const listAuditLogs = async (req, res) => {
       where, order: [['created_at','DESC']],
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit),
+      include: [{ model: db.User, as: 'actor', attributes: ['id','email','first_name','last_name'], required: false }],
     });
 
     return res.json({

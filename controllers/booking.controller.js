@@ -43,7 +43,7 @@ const createBooking = async (req, res) => {
   try {
     const {
       model_id, event_title, event_type, event_date,
-      event_end_date, event_location, event_details,
+      event_end_date, event_location, event_lat, event_lng, event_details,
       duration_hours, agreed_rate,
     } = req.body;
 
@@ -89,6 +89,8 @@ const createBooking = async (req, res) => {
       event_date,
       event_end_date: event_end_date || null,
       event_location: event_location || null,
+      event_lat: event_lat || null,
+      event_lng: event_lng || null,
       event_details:  event_details  || null,
       duration_hours: duration_hours || null,
       agreed_rate:    agreed_rate    || null,
