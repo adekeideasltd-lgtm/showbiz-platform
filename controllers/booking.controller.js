@@ -484,6 +484,25 @@ const reviewCancellation = async (req, res) => {
       }
     }
 
+    // Partial-refund tier: remaining balance after owner refund + standard commission
+    // goes to a separate cancellation collection ledger (entertainer gets nothing)
+    if (booking.refund_tier === 'partial' && booking.status === 'paid') {
+      const { getSetting } = require('./settings.controller');
+      const RATE = await getSetting('commission_rate', 10);
+      const totalAmount = parseFloat(booking.total_amount);
+      const commission  = parseFloat((totalAmount * RATE / 100).toFixed(2));
+      const collectionAmount = parseFloat((totalAmount - refundAmount - commission).toFixed(2));
+
+      if (collectionAmount > 0) {
+        const superAdmin = await db.User.findOne({ where: { email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@showbiz.ng' }, transaction: t });
+        if (superAdmin) {
+          await creditWallet(superAdmin.id, collectionAmount,
+            `Cancellation collection — ${booking.event_title} (partial tier, 24-48hr cancellation)`,
+            `cancel-collection-${booking.id}`, { booking_id: booking.id }, t);
+        }
+      }
+    }
+
     await booking.update({
       status: 'cancelled',
       cancellation_status: 'approved',
