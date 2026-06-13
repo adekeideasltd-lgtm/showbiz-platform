@@ -521,10 +521,104 @@ const reviewCancellation = async (req, res) => {
   }
 };
 
+
+// ── MODEL: POST /api/bookings/:id/model-cancel ────────────────────────────────
+const modelCancelBooking = async (req, res) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const { reason } = req.body;
+    if (!reason) { await t.rollback(); return res.status(400).json({ status: 'error', message: 'Cancellation reason is required.' }); }
+    const booking = await db.Booking.findByPk(req.params.id, { transaction: t });
+    if (!booking) { await t.rollback(); return res.status(404).json({ status: 'error', message: 'Booking not found.' }); }
+    const profile = await db.ModelProfile.findOne({ where: { user_id: req.user.id }, transaction: t });
+    if (!profile || booking.model_id !== profile.id) { await t.rollback(); return res.status(403).json({ status: 'error', message: 'This booking is not for you.' }); }
+    if (!['confirmed','paid'].includes(booking.status)) {
+      await t.rollback();
+      return res.status(400).json({ status: 'error', message: `Cannot cancel a booking with status: ${booking.status}` });
+    }
+
+    const eventDate = new Date(booking.event_date);
+    const now = new Date();
+    const hoursUntilEvent = (eventDate - now) / (1000 * 60 * 60);
+    const totalAmount = parseFloat(booking.total_amount);
+    const isPaid = booking.status === 'paid';
+    const isLate = hoursUntilEvent < 24;
+
+    const { creditWallet } = require('./wallet.controller');
+
+    // Full refund to owner if booking was paid
+    if (isPaid) {
+      await creditWallet(booking.owner_id, totalAmount,
+        `Booking cancellation refund — ${booking.event_title} (cancelled by entertainer)`,
+        `model-cancel-refund-${booking.id}`, { booking_id: booking.id }, t);
+    }
+
+    // 20% penalty on the model if cancelled within 24 hours of the event
+    // Debited regardless of balance (can go negative)
+    let penaltyAmount = 0;
+    if (isLate) {
+      penaltyAmount = parseFloat((totalAmount * 0.20).toFixed(2));
+
+      const wallet = await db.Wallet.findOne({ where: { user_id: req.user.id }, transaction: t });
+      const balanceBefore = wallet ? parseFloat(wallet.balance) : 0;
+      const balanceAfter = balanceBefore - penaltyAmount;
+
+      if (wallet) {
+        await wallet.update({ balance: balanceAfter }, { transaction: t });
+      } else {
+        await db.Wallet.create({
+          user_id: req.user.id, balance: balanceAfter, locked: 0, currency: 'NGN',
+        }, { transaction: t });
+      }
+
+      await db.WalletTransaction.create({
+        wallet_id: wallet ? wallet.id : (await db.Wallet.findOne({ where: { user_id: req.user.id }, transaction: t })).id,
+        user_id: req.user.id,
+        type: 'debit',
+        amount: penaltyAmount,
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
+        description: `Late cancellation penalty (20%) — ${booking.event_title}`,
+        reference: `model-late-penalty-${booking.id}`,
+        status: 'success',
+        metadata: { booking_id: booking.id },
+      }, { transaction: t });
+
+      const superAdmin = await db.User.findOne({ where: { email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@showbiz.ng' }, transaction: t });
+      if (superAdmin) {
+        await creditWallet(superAdmin.id, penaltyAmount,
+          `Late cancellation penalty collected — ${booking.event_title} (entertainer cancelled <24hrs)`,
+          `penalty-collection-${booking.id}`, { booking_id: booking.id }, t);
+      }
+    }
+
+    const prev = booking.status;
+    await booking.update({
+      status: 'cancelled',
+      cancellation_status: 'approved',
+      cancellation_reason: reason,
+      refund_amount: isPaid ? totalAmount : 0,
+      refund_tier: isLate ? 'model_late_cancel' : 'model_cancel',
+    }, { transaction: t });
+
+    await logStatusChange(booking.id, prev, 'cancelled', req.user.id,
+      `Cancelled by entertainer: ${reason}${isLate ? ` (late cancellation — 20% penalty: ₦${penaltyAmount})` : ''}`, t);
+
+    await updateModelAvailability(booking.model_id, booking.event_date, 'available', t);
+
+    await t.commit();
+    return res.json({ status: 'success', message: 'Booking cancelled.', data: { refunded: isPaid ? totalAmount : 0, penalty: penaltyAmount } });
+  } catch (err) {
+    await t.rollback();
+    console.error('[modelCancelBooking] ERROR:', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to cancel booking.' });
+  }
+};
+
 module.exports = {
   createBooking, listBookings, getBooking,
   adminListBookings, adminApproveBooking, adminRejectBooking,
   modelAcceptBooking, modelDeclineBooking,
   completeBooking, cancelBooking,
-  requestCancellation, reviewCancellation,
+  requestCancellation, reviewCancellation, modelCancelBooking,
 };

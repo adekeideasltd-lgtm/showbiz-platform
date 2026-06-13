@@ -314,6 +314,7 @@ router.post('/bookings/:id/request-cancellation', authenticate, requireRole('sho
 router.post('/admin/bookings/:id/review-cancellation', authenticate, requireRole('super_admin','admin'), bookingCtrl.reviewCancellation);
 router.post('/bookings/:id/accept',  authenticate, requireRole('model'),                bookingCtrl.modelAcceptBooking);
 router.post('/bookings/:id/decline', authenticate, requireRole('model'),                bookingCtrl.modelDeclineBooking);
+router.post('/bookings/:id/model-cancel', authenticate, requireRole('model'), bookingCtrl.modelCancelBooking);
 
 router.get('/admin/bookings',                  authenticate, checkPermission('bookings.view'),    bookingCtrl.adminListBookings);
 router.post('/admin/bookings/:id/approve',     authenticate, checkPermission('bookings.approve'), bookingCtrl.adminApproveBooking);
