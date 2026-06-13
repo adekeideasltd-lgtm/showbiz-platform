@@ -374,9 +374,122 @@ const cancelBooking = async (req, res) => {
   }
 };
 
+
+// ── OWNER: POST /api/bookings/:id/request-cancellation ────────────────────────
+const requestCancellation = async (req, res) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const { reason } = req.body;
+    if (!reason) { await t.rollback(); return res.status(400).json({ status: 'error', message: 'Cancellation reason is required.' }); }
+    const booking = await db.Booking.findByPk(req.params.id, { transaction: t });
+    if (!booking) { await t.rollback(); return res.status(404).json({ status: 'error', message: 'Booking not found.' }); }
+    if (booking.owner_id !== req.user.id) { await t.rollback(); return res.status(403).json({ status: 'error', message: 'You can only cancel your own bookings.' }); }
+
+    // Pre-payment statuses cancel immediately, no refund needed
+    if (['pending','model_review'].includes(booking.status)) {
+      const prev = booking.status;
+      await booking.update({ status: 'cancelled' }, { transaction: t });
+      await logStatusChange(booking.id, prev, 'cancelled', req.user.id, reason, t);
+      await updateModelAvailability(booking.model_id, booking.event_date, 'available', t);
+      await t.commit();
+      return res.json({ status: 'success', message: 'Booking cancelled.' });
+    }
+
+    // Post-payment: must go through cancellation request/refund tier flow
+    if (!['confirmed','paid'].includes(booking.status)) {
+      await t.rollback();
+      return res.status(400).json({ status: 'error', message: `Cannot cancel a booking with status: ${booking.status}` });
+    }
+    if (booking.cancellation_status === 'requested') {
+      await t.rollback();
+      return res.status(400).json({ status: 'error', message: 'A cancellation request is already pending for this booking.' });
+    }
+
+    // Calculate refund tier based on time-to-event
+    const eventDate = new Date(booking.event_date);
+    const now = new Date();
+    const hoursUntilEvent = (eventDate - now) / (1000 * 60 * 60);
+
+    let tier, refundPercent;
+    if (hoursUntilEvent >= 48) { tier = 'full'; refundPercent = 0.90; }
+    else if (hoursUntilEvent >= 24) { tier = 'partial'; refundPercent = 0.50; }
+    else { tier = 'none'; refundPercent = 0; }
+
+    const refundAmount = booking.status === 'paid'
+      ? parseFloat((parseFloat(booking.total_amount) * refundPercent).toFixed(2))
+      : 0;
+
+    await booking.update({
+      cancellation_status: 'requested',
+      cancellation_reason: reason,
+      cancellation_requested_at: now,
+      refund_tier: tier,
+      refund_amount: refundAmount,
+    }, { transaction: t });
+
+    await logStatusChange(booking.id, booking.status, booking.status, req.user.id,
+      `Cancellation requested: ${reason} (tier: ${tier}, refund: ₦${refundAmount})`, t);
+
+    await t.commit();
+    return res.json({ status: 'success', message: 'Cancellation request submitted for admin review.', data: { tier, refundAmount } });
+  } catch (err) {
+    await t.rollback();
+    console.error('[requestCancellation] ERROR:', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to request cancellation.' });
+  }
+};
+
+// ── ADMIN: POST /api/admin/bookings/:id/review-cancellation ──────────────────
+const reviewCancellation = async (req, res) => {
+  const t = await db.sequelize.transaction();
+  try {
+    const { approve, admin_notes } = req.body;
+    const booking = await db.Booking.findByPk(req.params.id, { transaction: t });
+    if (!booking) { await t.rollback(); return res.status(404).json({ status: 'error', message: 'Booking not found.' }); }
+    if (booking.cancellation_status !== 'requested') {
+      await t.rollback();
+      return res.status(400).json({ status: 'error', message: 'No pending cancellation request for this booking.' });
+    }
+
+    if (!approve) {
+      await booking.update({ cancellation_status: 'denied', admin_notes }, { transaction: t });
+      await logStatusChange(booking.id, booking.status, booking.status, req.user.id, `Cancellation request denied. ${admin_notes || ''}`, t);
+      await t.commit();
+      return res.json({ status: 'success', message: 'Cancellation request denied.' });
+    }
+
+    const prev = booking.status;
+    const refundAmount = parseFloat(booking.refund_amount || 0);
+
+    if (refundAmount > 0) {
+      const { creditWallet } = require('./wallet.controller');
+      await creditWallet(booking.owner_id, refundAmount,
+        `Booking cancellation refund — ${booking.event_title} (${booking.refund_tier} tier)`,
+        `refund-${booking.id}`, { booking_id: booking.id }, t);
+    }
+
+    await booking.update({
+      status: 'cancelled',
+      cancellation_status: 'approved',
+      admin_notes,
+    }, { transaction: t });
+    await logStatusChange(booking.id, prev, 'cancelled', req.user.id,
+      `Cancellation approved. Refund: ₦${refundAmount} (${booking.refund_tier} tier). ${admin_notes || ''}`, t);
+    await updateModelAvailability(booking.model_id, booking.event_date, 'available', t);
+
+    await t.commit();
+    return res.json({ status: 'success', message: 'Cancellation approved and refund processed.', data: { refundAmount } });
+  } catch (err) {
+    await t.rollback();
+    console.error('[reviewCancellation] ERROR:', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to review cancellation.' });
+  }
+};
+
 module.exports = {
   createBooking, listBookings, getBooking,
   adminListBookings, adminApproveBooking, adminRejectBooking,
   modelAcceptBooking, modelDeclineBooking,
   completeBooking, cancelBooking,
+  requestCancellation, reviewCancellation,
 };

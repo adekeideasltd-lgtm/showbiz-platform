@@ -309,6 +309,8 @@ router.post('/bookings',             authenticate, bookingLimiter, requireRole('
 router.get('/bookings',              authenticate, requireRole('showbiz_owner','model'), bookingCtrl.listBookings);
 router.get('/bookings/:id',          authenticate,                                       bookingCtrl.getBooking);
 router.post('/bookings/:id/cancel',  authenticate, requireRole('showbiz_owner'),        bookingCtrl.cancelBooking);
+router.post('/bookings/:id/request-cancellation', authenticate, requireRole('showbiz_owner'), bookingCtrl.requestCancellation);
+router.post('/admin/bookings/:id/review-cancellation', authenticate, requireRole('super_admin','admin'), bookingCtrl.reviewCancellation);
 router.post('/bookings/:id/accept',  authenticate, requireRole('model'),                bookingCtrl.modelAcceptBooking);
 router.post('/bookings/:id/decline', authenticate, requireRole('model'),                bookingCtrl.modelDeclineBooking);
 
