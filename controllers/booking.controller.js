@@ -186,7 +186,11 @@ const adminListBookings = async (req, res) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
     const where = {};
-    if (status) where.status = status;
+    if (status === 'rejected') {
+      where.status = { [require('sequelize').Op.in]: ['rejected_by_admin', 'rejected_by_model'] };
+    } else if (status) {
+      where.status = status;
+    }
 
     const { count, rows } = await db.Booking.findAndCountAll({
       where,
