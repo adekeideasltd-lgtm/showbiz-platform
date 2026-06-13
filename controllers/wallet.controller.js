@@ -248,16 +248,18 @@ const adminCancellationLedger = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const { Op } = require('sequelize');
-    let pattern;
-    if (req.query.type === 'refund') pattern = 'refund-%';
-    else if (req.query.type === 'killfee') pattern = 'killfee-%';
-    else if (req.query.type === 'collection') pattern = 'cancel-collection-%';
-    else pattern = '%cancel%';
+    let where;
+    if (req.query.type === 'refund') where = { reference: { [Op.iLike]: 'refund-%' } };
+    else if (req.query.type === 'killfee') where = { reference: { [Op.iLike]: 'killfee-%' } };
+    else if (req.query.type === 'collection') where = { reference: { [Op.iLike]: 'cancel-collection-%' } };
+    else where = { [Op.or]: [
+      { reference: { [Op.iLike]: 'refund-%' } },
+      { reference: { [Op.iLike]: 'killfee-%' } },
+      { reference: { [Op.iLike]: 'cancel-collection-%' } },
+    ] };
 
     const { count, rows } = await db.WalletTransaction.findAndCountAll({
-      where: {
-        reference: { [Op.iLike]: pattern },
-      },
+      where,
       include: [{ model: db.User, as: 'user', attributes: ['id','first_name','last_name','email'] }],
       order: [['created_at','DESC']],
       limit: parseInt(limit),
