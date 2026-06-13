@@ -428,6 +428,7 @@ User.hasOne(Wallet, { foreignKey: 'user_id', as: 'wallet' });
 Wallet.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Wallet.hasMany(WalletTransaction, { foreignKey: 'wallet_id', as: 'transactions' });
 WalletTransaction.belongsTo(Wallet, { foreignKey: 'wallet_id', as: 'wallet' });
+WalletTransaction.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // ── Bank Transfers ────────────────────────────────────────────────────────────
 const BankTransfer = sequelize.define('BankTransfer', {
