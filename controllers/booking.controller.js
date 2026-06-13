@@ -460,12 +460,28 @@ const reviewCancellation = async (req, res) => {
 
     const prev = booking.status;
     const refundAmount = parseFloat(booking.refund_amount || 0);
+    const { creditWallet } = require('./wallet.controller');
 
     if (refundAmount > 0) {
-      const { creditWallet } = require('./wallet.controller');
       await creditWallet(booking.owner_id, refundAmount,
         `Booking cancellation refund — ${booking.event_title} (${booking.refund_tier} tier)`,
         `refund-${booking.id}`, { booking_id: booking.id }, t);
+    }
+
+    // No-refund tier: pay entertainer a kill fee for the reserved slot
+    if (booking.refund_tier === 'none' && booking.status === 'paid') {
+      const { getSetting } = require('./settings.controller');
+      const RATE = await getSetting('commission_rate', 10);
+      const totalAmount = parseFloat(booking.total_amount);
+      const commission  = parseFloat((totalAmount * RATE / 100).toFixed(2));
+      const killFee     = parseFloat((totalAmount - commission).toFixed(2));
+
+      const modelProfile = await db.ModelProfile.findByPk(booking.model_id, { transaction: t });
+      if (modelProfile) {
+        await creditWallet(modelProfile.user_id, killFee,
+          `Booking payout (kill fee) — ${booking.event_title} cancelled <24hrs, no refund issued`,
+          `killfee-${booking.id}`, { booking_id: booking.id }, t);
+      }
     }
 
     await booking.update({
