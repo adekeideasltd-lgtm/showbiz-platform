@@ -34,6 +34,12 @@ const login = async (req, res) => {
     if (user.is_suspended) {
       return res.status(403).json({ status: 'error', message: 'Account suspended. Contact admin.' });
     }
+    if (user.account_status === 'deleted') {
+      return res.status(403).json({ status: 'error', message: 'This account has been permanently deleted.' });
+    }
+    if (user.account_status === 'pending_deletion') {
+      return res.status(403).json({ status: 'error', message: 'This account is scheduled for deletion. Contact support to cancel.' });
+    }
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
@@ -87,6 +93,10 @@ const login = async (req, res) => {
       JWT_SECRET,
       { expiresIn: JWT_REFRESH_EXPIRES }
     );
+
+    // Auto-reactivate deactivated accounts on login
+    const { autoReactivate } = require('./account.controller');
+    await autoReactivate(user.id);
 
     // Update last login
     await user.update({ last_login_at: new Date(), last_login_ip: req.ip });

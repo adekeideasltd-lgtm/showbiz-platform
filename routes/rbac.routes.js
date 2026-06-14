@@ -119,6 +119,10 @@ router.post('/admin/bank-transfers/:id/reject',   authenticate, checkPermission(
 const walletCtrl = require('../controllers/wallet.controller');
 router.get('/wallet',                          authenticate, walletCtrl.getWallet);
 router.get('/wallet/transactions',             authenticate, walletCtrl.getTransactions);
+router.get('/account/status',                  authenticate, accountCtrl.getAccountStatus);
+router.post('/account/deactivate',             authenticate, accountCtrl.deactivateAccount);
+router.post('/account/request-deletion',       authenticate, accountCtrl.requestDeletion);
+router.post('/account/cancel-deletion',        authenticate, accountCtrl.cancelDeletion);
 router.post('/wallet/fund',                    authenticate, walletCtrl.initiateFunding);
 router.get('/wallet/verify/:reference',        authenticate, walletCtrl.verifyFunding);
 router.get('/admin/wallets',                   authenticate, checkPermission('payments.view'), walletCtrl.adminListWallets);
