@@ -36,7 +36,8 @@ const listModels = async (req, res) => {
         {
           model: db.User,
           as: 'user',
-          attributes: ['id', 'first_name', 'last_name', 'kyc_verified'],
+          where: { account_status: 'active' },
+          attributes: ['id', 'first_name', 'last_name', 'email', 'kyc_verified'],
         },
         {
           model: db.ModelPhoto,
