@@ -198,4 +198,4 @@ const requestResubmission = async (req, res) => {
   }
 };
 
-module.exports = { getMyKYC, submitKYC, adminListKYC, adminGetKYC, adminApproveKYC, adminRejectKYC };
+module.exports = { getMyKYC, submitKYC, adminListKYC, adminGetKYC, adminApproveKYC, adminRejectKYC, revokeKYC, requestResubmission };

@@ -35,6 +35,8 @@ router.get('/admin/kyc',                 authenticate, checkPermission('users.ma
 router.get('/admin/kyc/:id',             authenticate, checkPermission('users.manage'), kycCtrl.adminGetKYC);
 router.post('/admin/kyc/:id/approve',    authenticate, checkPermission('users.manage'), kycCtrl.adminApproveKYC);
 router.post('/admin/kyc/:id/reject',     authenticate, checkPermission('users.manage'), kycCtrl.adminRejectKYC);
+router.post('/admin/kyc/:id/revoke',     authenticate, checkPermission('users.manage'), kycCtrl.revokeKYC);
+router.post('/admin/kyc/:id/request-resubmission', authenticate, checkPermission('users.manage'), kycCtrl.requestResubmission);
 
 // ── UPLOAD ROUTES ────────────────────────────────────────────────────────────
 const uploadCtrl = require('../controllers/upload.controller');
