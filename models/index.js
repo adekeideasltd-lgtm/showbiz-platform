@@ -430,6 +430,23 @@ Wallet.hasMany(WalletTransaction, { foreignKey: 'wallet_id', as: 'transactions' 
 WalletTransaction.belongsTo(Wallet, { foreignKey: 'wallet_id', as: 'wallet' });
 WalletTransaction.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+// ── Notification ─────────────────────────────────────────────────────────────
+const Notification = sequelize.define('Notification', {
+  id:         { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  user_id:    { type: DataTypes.UUID, allowNull: false },
+  type:       { type: DataTypes.STRING(50), allowNull: false },
+  title:      { type: DataTypes.STRING(200), allowNull: false },
+  body:       { type: DataTypes.TEXT },
+  icon:       { type: DataTypes.STRING(10), defaultValue: '🔔' },
+  color:      { type: DataTypes.STRING(20), defaultValue: '#C9A84C' },
+  link:       { type: DataTypes.STRING(255) },
+  is_read:    { type: DataTypes.BOOLEAN, defaultValue: false },
+  metadata:   { type: DataTypes.JSONB, defaultValue: {} },
+}, { tableName: 'notifications', underscored: true });
+
+User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 // ── Bank Transfers ────────────────────────────────────────────────────────────
 const BankTransfer = sequelize.define('BankTransfer', {
   id:           { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -511,4 +528,5 @@ Withdrawal.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(Withdrawal, { foreignKey: 'user_id', as: 'withdrawals' });
 
 
-module.exports = { sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, PushSubscription, Review, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset, Withdrawal };
+module.exports = {
+  Notification, sequelize, Sequelize, KYCVerification, ActiveSession, ContactSubmission, Report, Announcement, Wallet, WalletTransaction, BankTransfer, Setting, PushSubscription, Review, Role, Permission, User, UserRole, AuditLog, RoleAssignmentHistory, ModelProfile, ShowbizProfile, ModelPhoto, ModelAvailability, Booking, BookingStatusHistory, Payment, Payout, Conversation, Message, PasswordReset, Withdrawal };

@@ -147,6 +147,7 @@ const approveWithdrawal = async (req, res) => {
       }
     } catch {}
 
+    appNotify.onWithdrawalReviewed(withdrawal.user_id, true, withdrawal.amount).catch(console.error);
     return res.json({ status: 'success', message: 'Withdrawal approved.' });
   } catch (err) {
     console.error('[approveWithdrawal] FULL STACK:', err.stack);

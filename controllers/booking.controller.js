@@ -1,6 +1,7 @@
 'use strict';
 
 const notify = require('../utils/email/notifications');
+const appNotify = require('../utils/notify');
 
 const { v4: uuidv4 } = require('uuid');
 const db = require('../models');
@@ -105,6 +106,7 @@ const createBooking = async (req, res) => {
       const modelUser = await db.User.findByPk(modelProfile.user_id);
       if (owner && modelUser) notify.onNewBookingAdmin(booking, owner, modelProfile).catch(console.error);
     notify.onBookingCreated(booking, owner, modelUser).catch(console.error);
+    appNotify.onNewBooking(booking, booking.owner_id, modelUser?.id).catch(console.error);
     } catch (_) {}
 
     return res.status(201).json({
@@ -235,6 +237,7 @@ const adminApproveBooking = async (req, res) => {
       const b = await db.Booking.findByPk(booking.id, { include: [{ model: db.User, as: 'owner' }, { model: db.ModelProfile, as: 'model', include: [{ model: db.User, as: 'user' }] }] });
       if (b?.model?.user && b?.owner) {
         notify.onBookingApprovedByAdmin(b, b.model.user, b.owner).catch(console.error);
+        appNotify.onBookingApprovedByAdmin(b, b.model?.user?.id, b.owner?.id).catch(console.error);
       } else {
         console.error('[approveBooking] Missing data - model user:', !!b?.model?.user, 'owner:', !!b?.owner);
       }
@@ -289,6 +292,7 @@ const modelAcceptBooking = async (req, res) => {
       const b = await db.Booking.findByPk(booking.id, { include: [{ model: db.User, as: 'owner' }] });
       const modelUser = await db.User.findByPk(req.user.id);
       if (b?.owner && modelUser) notify.onBookingConfirmedByModel(b, b.owner, modelUser).catch(console.error);
+      appNotify.onBookingAcceptedByEntertainer(b, b.owner?.id).catch(console.error);
     } catch (_) {}
     return res.json({ status: 'success', message: 'Booking confirmed! The event is locked in.' });
   } catch (err) {
@@ -318,6 +322,7 @@ const modelDeclineBooking = async (req, res) => {
       const b = await db.Booking.findByPk(booking.id, { include: [{ model: db.User, as: 'owner' }] });
       const modelUser = await db.User.findByPk(req.user.id);
       if (b?.owner && modelUser) notify.onBookingDeclinedByModel(b, b.owner, modelUser, reason).catch(console.error);
+      appNotify.onBookingDeclinedByEntertainer(b, b.owner?.id, reason).catch(console.error);
     } catch (_) {}
     return res.json({ status: 'success', message: 'Booking declined.' });
   } catch (err) {
@@ -431,6 +436,7 @@ const requestCancellation = async (req, res) => {
       `Cancellation requested: ${reason} (tier: ${tier}, refund: ₦${refundAmount})`, t);
 
     await t.commit();
+    appNotify.onCancellationRequested(booking).catch(console.error);
     return res.json({ status: 'success', message: 'Cancellation request submitted for admin review.', data: { tier, refundAmount } });
   } catch (err) {
     await t.rollback();
@@ -513,6 +519,7 @@ const reviewCancellation = async (req, res) => {
     await updateModelAvailability(booking.model_id, booking.event_date, 'available', t);
 
     await t.commit();
+    appNotify.onCancellationReviewed(booking, booking.owner_id, true, refundAmount).catch(console.error);
     return res.json({ status: 'success', message: 'Cancellation approved and refund processed.', data: { refundAmount } });
   } catch (err) {
     await t.rollback();
@@ -607,6 +614,7 @@ const modelCancelBooking = async (req, res) => {
     await updateModelAvailability(booking.model_id, booking.event_date, 'available', t);
 
     await t.commit();
+    appNotify.onBookingCancelledByEntertainer(booking, booking.owner_id, penaltyAmount).catch(console.error);
     return res.json({ status: 'success', message: 'Booking cancelled.', data: { refunded: isPaid ? totalAmount : 0, penalty: penaltyAmount } });
   } catch (err) {
     await t.rollback();

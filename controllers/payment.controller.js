@@ -5,6 +5,7 @@ const crypto  = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const db      = require('../models');
 const { getSetting } = require('./settings.controller');
+const appNotify = require('../utils/notify');
 const { creditWallet, debitWallet, getOrCreateWallet } = require('./wallet.controller');
 
 const getCommissionRate = async () => {

@@ -121,6 +121,7 @@ const adminApproveKYC = async (req, res) => {
     const approvedUser = await db.User.findByPk(kyc.user_id);
     if (approvedUser) notify.onKYCApproved(approvedUser).catch(console.error);
     console.log('[KYC] Approved for user', kyc.user_id);
+    appNotify.onKYCReviewed(kyc.user_id, true).catch(console.error);
     return res.json({ status: 'success', message: 'KYC approved.' });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Failed to approve KYC.' });
@@ -137,6 +138,7 @@ const adminRejectKYC = async (req, res) => {
     await db.User.update({ kyc_verified: false }, { where: { id: kyc.user_id } });
     const rejectedUser = await db.User.findByPk(kyc.user_id);
     if (rejectedUser) notify.onKYCRejected(rejectedUser, reason).catch(console.error);
+    appNotify.onKYCReviewed(kyc.user_id, false).catch(console.error);
     return res.json({ status: 'success', message: 'KYC rejected.' });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Failed to reject KYC.' });
