@@ -1,4 +1,5 @@
 const db = require('../models');
+const appNotify = require('../utils/notify');
 const notify = require('../utils/email/notifications');
 
 const GRACE_DAYS = 30;
@@ -74,13 +75,16 @@ const requestDeletion = async (req, res) => {
       deletion_scheduled_at: scheduledAt,
     });
 
-    // Notify superadmin
-    try {
-      const superAdmin = await db.User.findOne({ where: { email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@showbiz.ng' } });
-      if (superAdmin) {
-        notify.onAnnouncement && console.log(`[deletion] Admin notified: ${user.email} requested deletion, scheduled ${scheduledAt}`);
-      }
-    } catch (_) {}
+    // Notify admins
+    appNotify.notifyAdmins({
+      type: 'account_deletion_requested',
+      icon: '🗑️',
+      color: '#E85C5C',
+      title: 'Account deletion requested',
+      body: `User ${user.email} has requested permanent deletion. Scheduled for ${scheduledAt.toDateString()}.`,
+      link: '/admin/users',
+      metadata: { user_id: user.id, email: user.email },
+    }).catch(console.error);
 
     return res.json({
       status: 'success',
