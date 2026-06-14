@@ -154,7 +154,7 @@ const revokeKYC = async (req, res) => {
     if (!kyc) return res.status(404).json({ status: 'error', message: 'KYC not found.' });
 
     const { reason } = req.body;
-    await kyc.update({ status: 'revoked', rejection_reason: reason || 'KYC revoked by admin.' });
+    await kyc.update({ status: 'rejected', rejection_reason: '[REVOKED] ' + (reason || 'KYC approval revoked by admin. Please resubmit.') });
     await db.User.update({ kyc_verified: false }, { where: { id: kyc.user_id } });
 
     // Notify user
