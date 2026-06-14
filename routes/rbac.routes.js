@@ -117,6 +117,8 @@ router.post('/admin/bank-transfers/:id/reject',   authenticate, checkPermission(
 
 // ── WALLET ROUTES ─────────────────────────────────────────────────────────────
 const walletCtrl = require('../controllers/wallet.controller');
+const accountCtrl = require('../controllers/account.controller');
+const notifCtrl   = require('../controllers/notification.controller');
 router.get('/wallet',                          authenticate, walletCtrl.getWallet);
 router.get('/wallet/transactions',             authenticate, walletCtrl.getTransactions);
 router.get('/account/status',                  authenticate, accountCtrl.getAccountStatus);
