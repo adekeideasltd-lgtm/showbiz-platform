@@ -63,8 +63,7 @@ const submitKYC = async (req, res) => {
         submitted_at:    new Date(),
       };
 
-      const fixUrl = (f) => f.path.endsWith('.pdf') ? f.path.replace('/image/upload/', '/raw/upload/') : f.path;
-      if (getFile('nin_doc'))          { data.nin_doc_url = fixUrl(getFile('nin_doc')); data.nin_doc_public_id = getFile('nin_doc').filename; }
+      if (getFile('nin_doc'))          { data.nin_doc_url = getFile('nin_doc').path; data.nin_doc_public_id = getFile('nin_doc').filename; }
       if (getFile('gov_id'))           { data.gov_id_url = getFile('gov_id').path; data.gov_id_public_id = getFile('gov_id').filename; }
       if (getFile('proof_of_address')) { data.proof_of_address_url = getFile('proof_of_address').path; data.proof_of_address_public_id = getFile('proof_of_address').filename; }
       if (getFile('selfie'))           { data.selfie_url = getFile('selfie').path; data.selfie_public_id = getFile('selfie').filename; }
