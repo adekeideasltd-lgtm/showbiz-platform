@@ -1,199 +1,201 @@
 'use strict';
 
-const { sendEmail }  = require('./mailer');
-const { base: baseTemplate } = require('./templates');
-const templates      = require('./templates');
+const { sendEmail } = require('./mailer');
+const templates = require('./templates');
+const { base } = templates;
 
-const ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'superadmin@showbiz.ng';
+const safe = (val, fallback = 'there') => (val && val !== 'undefined' && val !== 'null') ? val : fallback;
+const formatNaira = (n) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(n || 0);
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://twerkie.com';
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@twerkie.com';
 
+// ── Registration ──────────────────────────────────────────────────────────────
 const onModelRegistered = async (user) => {
-  await sendEmail({ to: user.email, ...templates.welcomeModel({ firstName: user.first_name }) });
+  await sendEmail({ to: user.email, ...templates.welcomeModel({ firstName: safe(user.first_name) }) });
 };
-
 const onOwnerRegistered = async (user) => {
-  await sendEmail({ to: user.email, ...templates.welcomeOwner({ firstName: user.first_name }) });
+  await sendEmail({ to: user.email, ...templates.welcomeOwner({ firstName: safe(user.first_name) }) });
 };
 
+// ── Profile ───────────────────────────────────────────────────────────────────
 const onModelApproved = async (user) => {
-  await sendEmail({ to: user.email, ...templates.modelApproved({ firstName: user.first_name }) });
+  await sendEmail({ to: user.email, ...templates.modelApproved({ firstName: safe(user.first_name) }) });
 };
-
 const onModelRejected = async (user, reason) => {
-  await sendEmail({ to: user.email, ...templates.modelRejected({ firstName: user.first_name, reason }) });
+  await sendEmail({ to: user.email, ...templates.modelRejected({ firstName: safe(user.first_name), reason }) });
 };
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
 const onPasswordChanged = async (user) => {
-  await sendEmail({ to: user.email, ...templates.passwordChanged({ firstName: user.first_name }) });
+  await sendEmail({ to: user.email, ...templates.passwordChanged({ firstName: safe(user.first_name) }) });
 };
 
-const onBookingCreated = async (booking, owner, model) => {
-  await sendEmail({ to: owner.email, ...templates.bookingSubmitted({ ownerName: owner.first_name, booking }) });
-  await sendEmail({ to: ADMIN_EMAIL, ...templates.adminNewBooking({ booking, ownerName: owner.first_name + ' ' + owner.last_name, modelName: model.first_name + ' ' + model.last_name }) });
+// ── Bookings ──────────────────────────────────────────────────────────────────
+const onBookingCreated = async (booking, owner, modelUser) => {
+  await sendEmail({ to: owner.email, ...templates.bookingSubmitted({ ownerName: safe(owner.first_name), booking }) });
+};
+const onBookingApprovedByAdmin = async (booking, modelUser, owner) => {
+  if (owner?.email) await sendEmail({ to: owner.email, ...templates.bookingApprovedByAdmin({ firstName: safe(owner.first_name), booking }) });
+  if (modelUser?.email) await sendEmail({ to: modelUser.email, ...templates.bookingForModel({ modelName: safe(modelUser.first_name), booking, ownerName: safe(owner?.first_name) + ' ' + safe(owner?.last_name, '') }) });
+};
+const onBookingConfirmedByModel = async (booking, owner, modelUser) => {
+  const modelName = safe(modelUser?.first_name, 'The entertainer') + ' ' + safe(modelUser?.last_name, '');
+  await sendEmail({ to: owner.email, ...templates.bookingConfirmed({ ownerName: safe(owner.first_name), modelName: modelName.trim(), booking }) });
+};
+const onBookingDeclinedByModel = async (booking, owner, modelUser, reason) => {
+  const modelName = safe(modelUser?.first_name, 'The entertainer') + ' ' + safe(modelUser?.last_name, '');
+  await sendEmail({ to: owner.email, ...templates.bookingDeclined({ ownerName: safe(owner.first_name), modelName: modelName.trim(), booking, reason }) });
 };
 
-const onBookingApprovedByAdmin = async (booking, model, owner) => {
-  await sendEmail({ to: model.email, ...templates.bookingForModel({ modelName: model.first_name, booking, ownerName: owner.first_name + ' ' + owner.last_name }) });
-};
-
-const onBookingConfirmedByModel = async (booking, owner, model) => {
-  await sendEmail({ to: owner.email, ...templates.bookingConfirmed({ ownerName: owner.first_name, modelName: model.first_name + ' ' + model.last_name, booking }) });
-};
-
-const onBookingDeclinedByModel = async (booking, owner, model, reason) => {
-  await sendEmail({ to: owner.email, ...templates.bookingDeclined({ ownerName: owner.first_name, modelName: model.first_name + ' ' + model.last_name, booking, reason }) });
-};
-
+// ── Payments ──────────────────────────────────────────────────────────────────
 const onPaymentSuccess = async (payment, booking, owner) => {
-  await sendEmail({ to: owner.email, ...templates.paymentSuccess({ ownerName: owner.first_name, payment, booking }) });
+  await sendEmail({ to: owner.email, ...templates.paymentSuccess({ ownerName: safe(owner.first_name), payment, booking }) });
 };
-
 const onPayoutProcessed = async (payout, model) => {
-  await sendEmail({ to: model.email, ...templates.payoutProcessed({ modelName: model.first_name, payout }) });
+  await sendEmail({ to: model.email, ...templates.payoutProcessed({ modelName: safe(model.first_name), payout }) });
 };
 
-// placeholder - exports at bottom
-
-// ── KYC Notifications ─────────────────────────────────────────────────────────
-const onKYCSubmitted = async (user) => {
-  // Notify admin
-  await sendEmail({
-    to: process.env.SUPER_ADMIN_EMAIL,
-    subject: 'New KYC Submission — ' + user.first_name + ' ' + user.last_name,
-    html: baseTemplate('New KYC Submission', `
-      <p>A new KYC verification has been submitted and requires your review.</p>
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Name</td><td style="padding:8px;font-weight:600;">${user.first_name} ${user.last_name}</td></tr>
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Email</td><td style="padding:8px;">${user.email}</td></tr>
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Submitted</td><td style="padding:8px;">${new Date().toLocaleString()}</td></tr>
-      </table>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="${process.env.FRONTEND_URL}/admin/kyc" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Review KYC</a>
-      </div>
-    `),
-  });
-
-  // Notify user
+// ── Wallet ────────────────────────────────────────────────────────────────────
+const onWalletCredited = async (user, amount, description) => {
+  if (!user?.email) return;
   await sendEmail({
     to: user.email,
-    subject: 'KYC Submitted — Showbiz Platform',
-    html: baseTemplate('KYC Submitted Successfully', `
-      <p>Hi ${user.first_name},</p>
-      <p>Your KYC verification documents have been received. Our team will review them within <strong>24-48 hours</strong>.</p>
-      <p>You will receive an email once your verification is complete.</p>
-      <div style="background:#1A1A26;border:1px solid #2E2E42;border-radius:8px;padding:16px;margin:16px 0;">
-        <p style="font-size:13px;color:#8884A0;margin:0;">What happens next?</p>
-        <ul style="color:#F0EEF8;font-size:14px;line-height:1.8;margin:8px 0 0;">
-          <li>Our team reviews your documents</li>
-          <li>You receive an approval or rejection email</li>
-          <li>Upon approval, you get full platform access</li>
-        </ul>
+    subject: 'Your Twerkie wallet has been credited',
+    html: base(`
+      <p class="greeting">Hi ${safe(user.first_name)},</p>
+      <p class="text">Your Twerkie wallet has been credited.</p>
+      <div class="amount-label">Amount Credited</div>
+      <div class="amount">${formatNaira(amount)}</div>
+      ${description ? `<div class="highlight">${description}</div>` : ''}
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${FRONTEND_URL}/owner/wallet" class="btn">View Wallet</a>
       </div>
-    `),
+    `, 'Your wallet has been credited'),
+  });
+};
+
+// ── KYC ───────────────────────────────────────────────────────────────────────
+const onKYCSubmitted = async (user) => {
+  const ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || SUPPORT_EMAIL;
+  await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `New KYC Submission — ${safe(user.first_name, '')} ${safe(user.last_name, '')}`.trim(),
+    html: base(`
+      <p class="greeting">New KYC Submission</p>
+      <p class="text">A new KYC verification requires your review.</p>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Name</span><span class="info-value">${safe(user.first_name, '')} ${safe(user.last_name, '')}</span></div>
+        <div class="info-row"><span class="info-label">Email</span><span class="info-value">${user.email || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Submitted</span><span class="info-value">${new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
+      </div>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${FRONTEND_URL}/admin/kyc" class="btn">Review KYC</a>
+      </div>
+    `, 'New KYC submission requires review'),
+  });
+
+  await sendEmail({
+    to: user.email,
+    subject: 'KYC submitted — Twerkie',
+    html: base(`
+      <p class="greeting">Hi ${safe(user.first_name)},</p>
+      <p class="text">Your KYC verification documents have been received. Our team will review them within <strong>24–48 hours</strong>.</p>
+      <div class="highlight">
+        Once approved, you will have full access to all platform features and your profile will be visible to show owners.
+      </div>
+      <p class="text">You will receive an email as soon as your verification is complete.</p>
+    `, 'KYC documents received'),
   });
 };
 
 const onKYCApproved = async (user) => {
   await sendEmail({
     to: user.email,
-    subject: '✅ KYC Approved — You are now verified on Showbiz!',
-    html: baseTemplate('KYC Verification Approved!', `
-      <p>Hi ${user.first_name},</p>
-      <p style="font-size:16px;color:#2ECC8A;font-weight:700;">🎉 Congratulations! Your identity has been verified.</p>
-      <p>You now have full access to all Showbiz Platform features including:</p>
-      <ul style="color:#F0EEF8;font-size:14px;line-height:1.8;">
-        <li>✓ Browse and book professional models</li>
-        <li>✓ Receive and accept booking requests</li>
-        <li>✓ Process and receive payments</li>
-        <li>✓ Display a verified badge on your profile</li>
-      </ul>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="${process.env.FRONTEND_URL}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Go to Dashboard</a>
+    subject: 'Your KYC has been approved — Twerkie',
+    html: base(`
+      <p class="greeting">Congratulations, ${safe(user.first_name)}!</p>
+      <p class="text">Your identity has been verified. You now have full access to all Twerkie platform features.</p>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="badge badge-success">Verified</span></span></div>
+        <div class="info-row"><span class="info-label">Approved</span><span class="info-value">${new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
       </div>
-    `),
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${FRONTEND_URL}" class="btn">Go to Dashboard</a>
+      </div>
+    `, 'Your KYC has been approved'),
   });
 };
 
 const onKYCRejected = async (user, reason) => {
   await sendEmail({
     to: user.email,
-    subject: 'KYC Verification Update — Action Required',
-    html: baseTemplate('KYC Verification Unsuccessful', `
-      <p>Hi ${user.first_name},</p>
-      <p>Unfortunately, we were unable to verify your identity with the documents submitted.</p>
-      <div style="background:#2D1515;border:1px solid rgba(232,92,92,0.3);border-radius:8px;padding:16px;margin:16px 0;">
-        <p style="font-size:12px;color:#E85C5C;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Reason</p>
-        <p style="color:#F0EEF8;font-size:14px;margin:0;">${reason}</p>
+    subject: 'KYC verification update — Twerkie',
+    html: base(`
+      <p class="greeting">Hi ${safe(user.first_name)},</p>
+      <p class="text">Thank you for submitting your KYC documents. Unfortunately, we were unable to verify your identity at this time.</p>
+      ${reason ? `<div class="highlight"><strong>Reason:</strong> ${reason}</div>` : ''}
+      <p class="text">Please resubmit with clear, valid documents. Common issues include blurry images, expired IDs, or mismatched selfies.</p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${FRONTEND_URL}/model/kyc" class="btn">Resubmit KYC</a>
       </div>
-      <p style="font-size:14px;color:#8884A0;">Please resubmit your KYC with the correct documents. Common issues include:</p>
-      <ul style="color:#8884A0;font-size:13px;line-height:1.8;">
-        <li>Documents are blurry or unreadable</li>
-        <li>Expired ID documents</li>
-        <li>Selfie does not clearly match the ID</li>
-        <li>Documents are more than 3 months old</li>
-      </ul>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="${process.env.FRONTEND_URL}/model/kyc" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Resubmit KYC</a>
-      </div>
-    `),
+    `, 'Action required on your KYC submission'),
   });
 };
 
+// ── Contact Form ──────────────────────────────────────────────────────────────
 const onContactForm = async ({ name, email, subject, message }) => {
+  const ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || SUPPORT_EMAIL;
   await sendEmail({
-    to: process.env.SUPER_ADMIN_EMAIL,
-    subject: 'Contact Form: ' + subject,
-    html: baseTemplate('New Contact Form Submission', `
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;width:120px;">Name</td><td style="padding:8px;font-weight:600;">${name}</td></tr>
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Email</td><td style="padding:8px;">${email}</td></tr>
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Subject</td><td style="padding:8px;">${subject}</td></tr>
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;vertical-align:top;">Message</td><td style="padding:8px;line-height:1.7;">${message}</td></tr>
-      </table>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="mailto:${email}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Reply to ${name}</a>
+    to: ADMIN_EMAIL,
+    subject: `Contact: ${subject || 'New message'}`,
+    html: base(`
+      <p class="greeting">New Contact Form Submission</p>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Name</span><span class="info-value">${safe(name, 'Unknown')}</span></div>
+        <div class="info-row"><span class="info-label">Email</span><span class="info-value">${email || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Subject</span><span class="info-value">${subject || '-'}</span></div>
       </div>
-    `),
+      <div class="highlight">${message || '-'}</div>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="mailto:${email}" class="btn">Reply to ${safe(name, 'Sender')}</a>
+      </div>
+    `, `New contact: ${subject || ''}`),
   });
 
-  // Auto-reply to sender
   await sendEmail({
     to: email,
-    subject: 'We received your message — Showbiz Platform',
-    html: baseTemplate('Thanks for reaching out!', `
-      <p>Hi ${name},</p>
-      <p>Thank you for contacting Showbiz Platform. We have received your message and will respond within <strong>24 hours</strong>.</p>
-      <div style="background:#1A1A26;border:1px solid #2E2E42;border-radius:8px;padding:16px;margin:16px 0;">
-        <p style="font-size:12px;color:#8884A0;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Your message</p>
-        <p style="color:#F0EEF8;font-size:14px;line-height:1.7;margin:0;">${message}</p>
-      </div>
-      <p style="color:#8884A0;font-size:14px;">In the meantime, feel free to browse our <a href="${process.env.FRONTEND_URL}/models" style="color:#C9A84C;">model listings</a> or check our <a href="${process.env.FRONTEND_URL}/faq" style="color:#C9A84C;">FAQ</a>.</p>
-    `),
+    subject: 'We received your message — Twerkie',
+    html: base(`
+      <p class="greeting">Hi ${safe(name)},</p>
+      <p class="text">Thank you for reaching out. We have received your message and will get back to you within <strong>24 hours</strong>.</p>
+      <div class="highlight">${message || '-'}</div>
+      <p class="text" style="font-size:12px;color:#aaaaaa;">If your query is urgent, email us directly at <a href="mailto:${SUPPORT_EMAIL}" style="color:#1a1a1a;">${SUPPORT_EMAIL}</a>.</p>
+    `, 'We received your message'),
   });
 };
 
+// ── Reports ───────────────────────────────────────────────────────────────────
 const onReportReplied = async (user, report, reply) => {
   await sendEmail({
     to: user.email,
-    subject: 'Your Report Has Been Addressed — Showbiz Platform',
-    html: baseTemplate('Update on Your Report', `
-      <p>Hi ${user.first_name},</p>
-      <p>Our team has reviewed your ${report.type} and provided a response.</p>
-      <div style="background:#1A1A26;border:1px solid #2E2E42;border-radius:8px;padding:16px;margin:16px 0;">
-        <p style="font-size:12px;color:#8884A0;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Your ${report.type}</p>
-        <p style="color:#F0EEF8;font-size:14px;margin:0 0 12px;">${report.subject}</p>
-        <p style="font-size:12px;color:#8884A0;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Admin Response</p>
-        <p style="color:#C9A84C;font-size:14px;line-height:1.7;margin:0;">${reply}</p>
+    subject: 'Update on your report — Twerkie',
+    html: base(`
+      <p class="greeting">Hi ${safe(user.first_name)},</p>
+      <p class="text">Our team has reviewed your ${report?.type || 'report'} and provided a response.</p>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Subject</span><span class="info-value">${report?.subject || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="badge badge-success">${report?.status || 'Resolved'}</span></span></div>
       </div>
-      <p style="color:#8884A0;font-size:13px;">Status: <strong style="color:#2ECC8A;">${report.status}</strong></p>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="${process.env.FRONTEND_URL}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Go to Dashboard</a>
+      <div class="highlight"><strong>Admin Response:</strong><br/>${reply || '-'}</div>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${FRONTEND_URL}" class="btn">Go to Dashboard</a>
       </div>
-    `),
+    `, 'Update on your report'),
   });
 };
 
+// ── Announcements ─────────────────────────────────────────────────────────────
 const onAnnouncement = async (announcement, sender) => {
-  // Get target users based on audience
   const db = require('../../models');
   const { Op } = require('sequelize');
   const roleMap = { all: null, models: 'model', owners: 'showbiz_owner', admins: 'admin' };
@@ -211,129 +213,99 @@ const onAnnouncement = async (announcement, sender) => {
     }
   }
 
-  const typeColors = { info: '#5B8DEF', warning: '#F5C842', success: '#2ECC8A', urgent: '#E85C5C' };
-  const color = typeColors[announcement.type] || '#C9A84C';
-
-  // Send in batches to avoid overwhelming SMTP
   for (const user of users.slice(0, 100)) {
     await sendEmail({
       to: user.email,
-      subject: `📢 ${announcement.title} — Showbiz Platform`,
-      html: baseTemplate(announcement.title, `
-        <div style="border-left:4px solid ${color};padding-left:16px;margin-bottom:20px;">
-          <p style="font-size:12px;color:${color};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${announcement.type.toUpperCase()} ANNOUNCEMENT</p>
-          <p style="font-size:15px;color:#F0EEF8;line-height:1.8;">${announcement.message}</p>
+      subject: `${announcement.title} — Twerkie`,
+      html: base(`
+        <p class="greeting">${announcement.title}</p>
+        <div class="highlight">${announcement.message || ''}</div>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${FRONTEND_URL}" class="btn">Go to Dashboard</a>
         </div>
-        <div style="text-align:center;margin:24px 0;">
-          <a href="${process.env.FRONTEND_URL}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Go to Dashboard</a>
-        </div>
-      `),
+      `, announcement.title),
     }).catch(() => {});
   }
 };
 
+// ── Bank Transfer ─────────────────────────────────────────────────────────────
 const onBankTransferConfirmed = async (user, transfer) => {
   await sendEmail({
     to: user.email,
-    subject: '✅ Bank Transfer Confirmed — Wallet Credited',
-    html: baseTemplate('Transfer Confirmed!', `
-      <p>Hi ${user.first_name},</p>
-      <p>Your bank transfer has been confirmed and your wallet has been credited.</p>
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Reference</td><td style="padding:8px;font-weight:600;">${transfer.reference}</td></tr>
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Amount</td><td style="padding:8px;font-weight:700;color:#C9A84C;">₦${parseFloat(transfer.amount).toLocaleString()}</td></tr>
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Status</td><td style="padding:8px;color:#2ECC8A;font-weight:700;">Confirmed</td></tr>
-      </table>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="${process.env.FRONTEND_URL}/owner/wallet" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">View Wallet</a>
+    subject: 'Bank transfer confirmed — Twerkie',
+    html: base(`
+      <p class="greeting">Hi ${safe(user.first_name)},</p>
+      <p class="text">Your bank transfer has been confirmed and your wallet has been credited.</p>
+      <div class="amount-label">Amount Credited</div>
+      <div class="amount">${formatNaira(transfer?.amount)}</div>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Reference</span><span class="info-value">${transfer?.reference || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Status</span><span class="info-value"><span class="badge badge-success">Confirmed</span></span></div>
       </div>
-    `),
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${FRONTEND_URL}/owner/wallet" class="btn">View Wallet</a>
+      </div>
+    `, 'Bank transfer confirmed'),
   });
 };
 
 // ── Admin Notifications ───────────────────────────────────────────────────────
-const notifyAdmin = async (subject, html) => {
-  const db = require('../../models');
-  try {
-    const setting = await db.Setting.findOne({ where: { key: 'support_email' } });
-    const adminEmail = setting?.value || process.env.SMTP_USER;
-    await sendEmail({ to: adminEmail, subject, html: baseTemplate(subject, html) });
-  } catch (err) { console.error('[notifyAdmin]', err.message); }
-};
-
-const onNewKYCSubmission = async (user) => {
-  await notifyAdmin(
-    `🛡️ New KYC Submission — ${user.first_name} ${user.last_name}`,
-    `<p>A new KYC submission has been received from <strong>${user.first_name} ${user.last_name}</strong> (${user.email}).</p>
-     <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/kyc" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Review KYC</a></div>`
-  );
-};
-
 const onNewBookingAdmin = async (booking, owner, model) => {
-  await notifyAdmin(
-    `📅 New Booking Request — ${booking.event_title}`,
-    `<p><strong>${owner?.first_name} ${owner?.last_name}</strong> has created a new booking request for <strong>${model?.user?.first_name || 'a model'}</strong>.</p>
-     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Event</td><td style="padding:8px;font-weight:600;">${booking.event_title}</td></tr>
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Date</td><td style="padding:8px;">${booking.event_date}</td></tr>
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Your Payout</td><td style="padding:8px;font-weight:700;color:#C9A84C;">₦${parseFloat(booking.model_payout || booking.total_amount).toLocaleString()}</td></tr>
-     </table>
-     <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/bookings" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Review Booking</a></div>`
-  );
-};
-
-const onNewReportAdmin = async (user, report) => {
-  await notifyAdmin(
-    `🚩 New Report Submitted — ${report.subject}`,
-    `<p><strong>${user.first_name} ${user.last_name}</strong> has submitted a new report.</p>
-     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Subject</td><td style="padding:8px;font-weight:600;">${report.subject}</td></tr>
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Type</td><td style="padding:8px;">${report.type}</td></tr>
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Priority</td><td style="padding:8px;">${report.priority}</td></tr>
-     </table>
-     <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/reports" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">View Report</a></div>`
-  );
+  const ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || SUPPORT_EMAIL;
+  const ownerName = safe(owner?.first_name, '') + ' ' + safe(owner?.last_name, '');
+  const entertainerName = safe(model?.user?.first_name, '') + ' ' + safe(model?.user?.last_name, '');
+  await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `New booking — ${booking?.event_title || 'Event'}`,
+    html: base(`
+      <p class="greeting">New Booking Request</p>
+      <p class="text">A new booking has been submitted and requires your review.</p>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Event</span><span class="info-value">${booking?.event_title || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Show Owner</span><span class="info-value">${ownerName.trim() || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Entertainer</span><span class="info-value">${entertainerName.trim() || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Date</span><span class="info-value">${booking?.event_date || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Amount</span><span class="info-value">${formatNaira(booking?.total_amount)}</span></div>
+      </div>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${FRONTEND_URL}/admin/bookings" class="btn">Review Booking</a>
+      </div>
+    `, 'New booking requires review'),
+  });
 };
 
 const onNewBankTransferAdmin = async (user, transfer) => {
-  await notifyAdmin(
-    `🏦 New Bank Transfer Submission — ₦${parseFloat(transfer.amount).toLocaleString()}`,
-    `<p><strong>${user.first_name} ${user.last_name}</strong> has submitted a bank transfer for confirmation.</p>
-     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Amount</td><td style="padding:8px;font-weight:700;color:#C9A84C;">₦${parseFloat(transfer.amount).toLocaleString()}</td></tr>
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Reference</td><td style="padding:8px;">${transfer.reference}</td></tr>
-       <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Bank</td><td style="padding:8px;">${transfer.bank_name || '-'}</td></tr>
-     </table>
-     <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/admin/bank-transfers" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Confirm Transfer</a></div>`
-  );
-};
-
-const onWalletCredited = async (user, amount, description) => {
+  const ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || SUPPORT_EMAIL;
   await sendEmail({
-    to: user.email,
-    subject: '💰 Wallet Credited — Showbiz Platform',
-    html: baseTemplate('Wallet Credited', `
-      <p>Hi ${user.first_name},</p>
-      <p>Your wallet has been credited successfully.</p>
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Amount</td><td style="padding:8px;font-weight:700;color:#2ECC8A;">+₦${parseFloat(amount).toLocaleString()}</td></tr>
-        <tr><td style="padding:8px;color:#8884A0;font-size:13px;">Description</td><td style="padding:8px;">${description}</td></tr>
-      </table>
-      <div style="text-align:center;margin:24px 0;"><a href="${process.env.FRONTEND_URL}/owner/wallet" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">View Wallet</a></div>
-    `),
+    to: ADMIN_EMAIL,
+    subject: `Bank transfer submission — ${formatNaira(transfer?.amount)}`,
+    html: base(`
+      <p class="greeting">New Bank Transfer Submission</p>
+      <p class="text">${safe(user?.first_name, '')} ${safe(user?.last_name, '')} submitted a bank transfer for confirmation.</p>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Amount</span><span class="info-value">${formatNaira(transfer?.amount)}</span></div>
+        <div class="info-row"><span class="info-label">Reference</span><span class="info-value">${transfer?.reference || '-'}</span></div>
+        <div class="info-row"><span class="info-label">Bank</span><span class="info-value">${transfer?.bank_name || '-'}</span></div>
+      </div>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${FRONTEND_URL}/admin/bank-transfers" class="btn">Confirm Transfer</a>
+      </div>
+    `, 'Bank transfer requires confirmation'),
   });
 };
 
 const onAccountSuspended = async (user, reason) => {
   await sendEmail({
     to: user.email,
-    subject: '⚠️ Account Suspended — Showbiz Platform',
-    html: baseTemplate('Account Suspended', `
-      <p>Hi ${user.first_name},</p>
-      <p>Your account has been suspended. Please contact support for more information.</p>
-      ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-      <div style="text-align:center;margin:24px 0;"><a href="mailto:${process.env.SMTP_USER}" style="display:inline-block;padding:12px 28px;background:#C9A84C;color:#0A0A0F;text-decoration:none;border-radius:8px;font-weight:700;">Contact Support</a></div>
-    `),
+    subject: 'Your Twerkie account has been suspended',
+    html: base(`
+      <p class="greeting">Hi ${safe(user.first_name)},</p>
+      <p class="text">Your Twerkie account has been suspended. Please contact support for assistance.</p>
+      ${reason ? `<div class="highlight"><strong>Reason:</strong> ${reason}</div>` : ''}
+      <div style="text-align:center;margin:28px 0;">
+        <a href="mailto:${SUPPORT_EMAIL}" class="btn">Contact Support</a>
+      </div>
+    `, 'Your account has been suspended'),
   });
 };
 
@@ -345,14 +317,7 @@ module.exports = {
   onBookingConfirmedByModel, onBookingDeclinedByModel,
   onPaymentSuccess, onPayoutProcessed,
   onKYCSubmitted, onKYCApproved, onKYCRejected,
-  onContactForm,
-  onReportReplied,
-  onAnnouncement,
-  onBankTransferConfirmed,
-  onNewKYCSubmission,
-  onNewBookingAdmin,
-  onNewReportAdmin,
-  onNewBankTransferAdmin,
-  onWalletCredited,
-  onAccountSuspended,
+  onContactForm, onReportReplied, onAnnouncement,
+  onBankTransferConfirmed, onNewBookingAdmin,
+  onNewBankTransferAdmin, onWalletCredited, onAccountSuspended,
 };
