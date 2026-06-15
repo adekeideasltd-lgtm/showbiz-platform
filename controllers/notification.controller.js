@@ -43,4 +43,24 @@ const getUnreadCount = async (req, res) => {
   }
 };
 
-module.exports = { getNotifications, markRead, getUnreadCount };
+// DELETE /api/notifications/:id
+const deleteNotification = async (req, res) => {
+  try {
+    await db.Notification.destroy({ where: { id: req.params.id, user_id: req.user.id } });
+    return res.json({ status: 'success', message: 'Notification deleted.' });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Failed to delete notification.' });
+  }
+};
+
+// DELETE /api/notifications — clear all
+const clearNotifications = async (req, res) => {
+  try {
+    await db.Notification.destroy({ where: { user_id: req.user.id } });
+    return res.json({ status: 'success', message: 'All notifications cleared.' });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Failed to clear notifications.' });
+  }
+};
+
+module.exports = { getNotifications, markRead, getUnreadCount, deleteNotification, clearNotifications };

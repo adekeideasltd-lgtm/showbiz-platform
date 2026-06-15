@@ -1,6 +1,7 @@
 'use strict';
 
 const { v4: uuidv4 } = require('uuid');
+const appNotify = require('../utils/notify');
 const db = require('../models');
 
 // ── Helper: get the primary role of a user ────────────────────────────────────

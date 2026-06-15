@@ -127,6 +127,8 @@ router.get('/account/status',                  authenticate, accountCtrl.getAcco
 router.get('/notifications',                   authenticate, notifCtrl.getNotifications);
 router.get('/notifications/unread-count',      authenticate, notifCtrl.getUnreadCount);
 router.post('/notifications/mark-read',        authenticate, notifCtrl.markRead);
+router.delete('/notifications',                authenticate, notifCtrl.clearNotifications);
+router.delete('/notifications/:id',            authenticate, notifCtrl.deleteNotification);
 router.post('/account/deactivate',             authenticate, accountCtrl.deactivateAccount);
 router.post('/account/request-deletion',       authenticate, accountCtrl.requestDeletion);
 router.post('/account/cancel-deletion',        authenticate, accountCtrl.cancelDeletion);
