@@ -14,7 +14,7 @@ const listModels = async (req, res) => {
       min_rate, max_rate, specialty,
     } = req.query;
 
-    const where = { status: 'approved' };
+    const where = { status: 'approved', is_featured: true };
     if (gender)     where.gender     = gender;
     if (experience) where.experience = experience;
     if (city)       where.city       = city;
