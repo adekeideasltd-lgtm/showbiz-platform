@@ -5,6 +5,7 @@ const appNotify = require('../utils/notify');
 
 const { v4: uuidv4 } = require('uuid');
 const db = require('../models');
+const cancelCalc = require('../utils/cancellationCalc');
 
 const logStatusChange = async (bookingId, fromStatus, toStatus, changedBy, note = null, t = null) => {
   try {
@@ -410,24 +411,15 @@ const requestCancellation = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'A cancellation request is already pending for this booking.' });
     }
 
-    // Calculate refund tier based on time-to-event
-    const eventDate = new Date(booking.event_date);
-    const now = new Date();
-    const hoursUntilEvent = (eventDate - now) / (1000 * 60 * 60);
-
-    let tier, refundPercent;
-    if (hoursUntilEvent >= 48) { tier = 'full'; refundPercent = 0.90; }
-    else if (hoursUntilEvent >= 24) { tier = 'partial'; refundPercent = 0.50; }
-    else { tier = 'none'; refundPercent = 0; }
-
-    const refundAmount = booking.status === 'paid'
-      ? parseFloat((parseFloat(booking.total_amount) * refundPercent).toFixed(2))
-      : 0;
+    // Calculate refund tier based on time-to-event (extracted to utils/cancellationCalc.js, unit-tested)
+    const hours = cancelCalc.hoursUntilEvent(booking.event_date);
+    const { tier, refundPercent } = cancelCalc.getCancellationTier(hours);
+    const refundAmount = cancelCalc.calculateRefundAmount(parseFloat(booking.total_amount), refundPercent, booking.status === 'paid');
 
     await booking.update({
       cancellation_status: 'requested',
       cancellation_reason: reason,
-      cancellation_requested_at: now,
+      cancellation_requested_at: new Date(),
       refund_tier: tier,
       refund_amount: refundAmount,
     }, { transaction: t });
@@ -479,8 +471,7 @@ const reviewCancellation = async (req, res) => {
       const { getSetting } = require('./settings.controller');
       const RATE = await getSetting('commission_rate', 10);
       const totalAmount = parseFloat(booking.total_amount);
-      const commission  = parseFloat((totalAmount * RATE / 100).toFixed(2));
-      const killFee     = parseFloat((totalAmount - commission).toFixed(2));
+      const { commission, killFee } = cancelCalc.calculateKillFee(totalAmount, RATE);
 
       const modelProfile = await db.ModelProfile.findByPk(booking.model_id, { transaction: t });
       if (modelProfile) {
@@ -496,8 +487,7 @@ const reviewCancellation = async (req, res) => {
       const { getSetting } = require('./settings.controller');
       const RATE = await getSetting('commission_rate', 10);
       const totalAmount = parseFloat(booking.total_amount);
-      const commission  = parseFloat((totalAmount * RATE / 100).toFixed(2));
-      const collectionAmount = parseFloat((totalAmount - refundAmount - commission).toFixed(2));
+      const collectionAmount = cancelCalc.calculateCancellationCollection(totalAmount, refundAmount, RATE);
 
       if (collectionAmount > 0) {
         const superAdmin = await db.User.findOne({ where: { email: process.env.SUPER_ADMIN_EMAIL || 'superadmin@showbiz.ng' }, transaction: t });
@@ -544,12 +534,10 @@ const modelCancelBooking = async (req, res) => {
       return res.status(400).json({ status: 'error', message: `Cannot cancel a booking with status: ${booking.status}` });
     }
 
-    const eventDate = new Date(booking.event_date);
-    const now = new Date();
-    const hoursUntilEvent = (eventDate - now) / (1000 * 60 * 60);
     const totalAmount = parseFloat(booking.total_amount);
     const isPaid = booking.status === 'paid';
-    const isLate = hoursUntilEvent < 24;
+    const hours = cancelCalc.hoursUntilEvent(booking.event_date);
+    const isLate = cancelCalc.isLateCancellation(hours);
 
     const { creditWallet } = require('./wallet.controller');
 
@@ -564,7 +552,7 @@ const modelCancelBooking = async (req, res) => {
     // Debited regardless of balance (can go negative)
     let penaltyAmount = 0;
     if (isLate) {
-      penaltyAmount = parseFloat((totalAmount * 0.20).toFixed(2));
+      penaltyAmount = cancelCalc.calculateLateCancellationPenalty(totalAmount);
 
       const wallet = await db.Wallet.findOne({ where: { user_id: req.user.id }, transaction: t });
       const balanceBefore = wallet ? parseFloat(wallet.balance) : 0;

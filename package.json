@@ -8,7 +8,8 @@
     "dev": "npx nodemon app.js",
     "migrate": "npx sequelize-cli db:migrate",
     "seed": "npx sequelize-cli db:seed --seed 001_rbac_seed.js",
-    "undo": "npx sequelize-cli db:migrate:undo:all"
+    "undo": "npx sequelize-cli db:migrate:undo:all",
+    "test": "jest --silent=false"
   },
   "keywords": [],
   "author": "",
@@ -38,6 +39,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "jest": "^30.4.2",
     "nodemon": "^3.1.14",
     "sequelize-cli": "^6.6.5"
   }
