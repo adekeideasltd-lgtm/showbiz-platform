@@ -8,23 +8,34 @@ const db = require('../models');
 // ── GET /api/models — public browse (approved only) ───────────────────────────
 const listModels = async (req, res) => {
   try {
+    const { Op } = require('sequelize');
     const {
       page = 1, limit = 20,
       gender, experience, city, country,
       min_rate, max_rate, specialty,
+      search, verified_only,
     } = req.query;
-
     const where = { status: 'approved', is_featured: true };
     if (gender)     where.gender     = gender;
     if (experience) where.experience = experience;
-    if (city)       where.city       = city;
+    if (city)       where.city       = { [Op.iLike]: '%' + city + '%' };
     if (country)    where.country    = country;
-
+    if (specialty)  where.specialties = { [Op.overlap]: [specialty] };
     if (min_rate || max_rate) {
-      const { Op } = require('sequelize');
       where.hourly_rate = {};
       if (min_rate) where.hourly_rate[Op.gte] = parseFloat(min_rate);
       if (max_rate) where.hourly_rate[Op.lte] = parseFloat(max_rate);
+    }
+
+    const userWhere = { account_status: 'active' };
+    if (search) {
+      userWhere[Op.or] = [
+        { first_name: { [Op.iLike]: '%' + search + '%' } },
+        { last_name:  { [Op.iLike]: '%' + search + '%' } },
+      ];
+    }
+    if (verified_only === 'true') {
+      userWhere.kyc_verified = true;
     }
 
     const { count, rows } = await db.ModelProfile.findAndCountAll({
@@ -32,11 +43,12 @@ const listModels = async (req, res) => {
       limit:  parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit),
       order:  [['is_featured', 'DESC'], ['created_at', 'DESC']],
+      distinct: true,
       include: [
         {
           model: db.User,
           as: 'user',
-          where: { account_status: 'active' },
+          where: userWhere,
           attributes: ['id', 'first_name', 'last_name', 'email', 'kyc_verified'],
         },
         {
@@ -48,7 +60,6 @@ const listModels = async (req, res) => {
         },
       ],
     });
-
     return res.json({
       status: 'success',
       data: {
