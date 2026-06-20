@@ -15,6 +15,7 @@ const {
   uploadLimiter, paymentLimiter, messageLimiter,
   registerLimiter, bookingLimiter,
 } = require('../middleware/rateLimit.middleware');
+const { verifyCaptcha } = require('../middleware/captcha.middleware');
 
 // Global API rate limit
 router.use(apiLimiter);
@@ -60,15 +61,15 @@ router.post('/auth/reset-password-link',    strictAuthLimiter, forgotCtrl.resetP
 router.get('/auth/verify-reset-token',      forgotCtrl.verifyResetToken);
 
 // ── PUBLIC routes (no token needed) ──────────────────────────────────────────
-router.post('/auth/login', authLimiter,        authCtrl.login);
+router.post('/auth/login', authLimiter, verifyCaptcha,        authCtrl.login);
 router.post('/auth/refresh',      authCtrl.refresh);
-router.post('/auth/register', registerLimiter,     registerCtrl.register);
+router.post('/auth/register', registerLimiter, verifyCaptcha,     registerCtrl.register);
 router.get('/auth/check-email',   registerCtrl.checkEmail);
 
 
 // ── PUBLIC CONTACT FORM ───────────────────────────────────────────────────────
 const contactCtrl = require('../controllers/contact.controller');
-router.post('/contact', contactCtrl.submitContact);
+router.post('/contact', verifyCaptcha, contactCtrl.submitContact);
 
 
 
