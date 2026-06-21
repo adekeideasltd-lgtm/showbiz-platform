@@ -201,31 +201,97 @@ const paystackWebhook = async (req, res) => {
     const payload = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
     const { event, data } = payload;
     if (event === 'charge.success' && data.reference?.startsWith('WALLET_')) {
-      // Atomic idempotency check — skip if already processed
-      const existing = await db.WalletTransaction.findOne({
-        where: { reference: data.reference, status: 'success' },
-      });
-      if (existing) {
-        console.log('[Webhook] Already processed:', data.reference);
-        return;
-      }
+      // Transaction + row lock prevents a race condition if Paystack
+      // delivers the same webhook twice in close succession (it does retry).
+      const t = await db.sequelize.transaction();
+      try {
+        const pending = await db.WalletTransaction.findOne({
+          where: { reference: data.reference },
+          lock: t.LOCK.UPDATE,
+          transaction: t,
+        });
 
-      // Only process if pending
-      const pending = await db.WalletTransaction.findOne({
-        where: { reference: data.reference, status: 'pending' },
-      });
-      if (pending) {
-        const userId = data.metadata?.user_id;
-        if (userId) {
-          await creditWallet(userId, data.amount / 100, 'Wallet funding via Paystack (webhook)', data.reference, {});
-          await db.WalletTransaction.update(
-            { status: 'success' },
-            { where: { reference: data.reference, status: { [db.Sequelize.Op.ne]: 'success' } } }
-          );
+        if (!pending) {
+          console.log('[Webhook] No matching pending transaction for reference:', data.reference);
+          await t.rollback();
+          return;
         }
+
+        if (pending.status === 'success') {
+          console.log('[Webhook] Already processed:', data.reference);
+          await t.rollback();
+          return;
+        }
+
+        const userId = data.metadata?.user_id || pending.user_id;
+        if (userId) {
+          await creditWallet(userId, data.amount / 100, 'Wallet funding via Paystack (webhook)', data.reference, {}, t);
+          await pending.update({ status: 'success' }, { transaction: t });
+        }
+
+        await t.commit();
+      } catch (innerErr) {
+        await t.rollback();
+        console.error('[paystackWebhook] transaction error:', innerErr.message);
       }
     }
   } catch (err) { console.error('[paystackWebhook]', err.message); }
 };
 
-module.exports = { initiatePayment, completeBookingPayment, listPayments, adminListPayments, adminPaymentStats, paystackWebhook };
+// ── Reconciliation: catch any wallet funding that Paystack confirmed but our
+//    webhook never received/processed (network blip, server downtime, etc).
+//    Run periodically via cron against all 'pending' WALLET_ transactions
+//    older than a few minutes, re-verifying directly against Paystack's API.
+const reconcilePendingWalletTransactions = async () => {
+  const axios = require('axios');
+  const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
+  const cutoff = new Date(Date.now() - 5 * 60 * 1000); // older than 5 minutes
+
+  const stale = await db.WalletTransaction.findAll({
+    where: {
+      status: 'pending',
+      reference: { [db.Sequelize.Op.like]: 'WALLET_%' },
+      created_at: { [db.Sequelize.Op.lt]: cutoff },
+    },
+  });
+
+  console.log(`[Reconcile] Found ${stale.length} stale pending wallet transaction(s).`);
+
+  for (const txn of stale) {
+    try {
+      const verifyRes = await axios.get(
+        `https://api.paystack.co/transaction/verify/${txn.reference}`,
+        { headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` } }
+      );
+      const payData = verifyRes.data?.data;
+      if (payData?.status === 'success') {
+        const t = await db.sequelize.transaction();
+        try {
+          const locked = await db.WalletTransaction.findOne({
+            where: { id: txn.id },
+            lock: t.LOCK.UPDATE,
+            transaction: t,
+          });
+          if (locked && locked.status !== 'success') {
+            await creditWallet(locked.user_id, payData.amount / 100, 'Wallet funding via Paystack (reconciled)', locked.reference, {}, t);
+            await locked.update({ status: 'success' }, { transaction: t });
+            console.log(`[Reconcile] Recovered missed payment: ${locked.reference}`);
+          }
+          await t.commit();
+        } catch (innerErr) {
+          await t.rollback();
+          console.error('[Reconcile] transaction error:', innerErr.message);
+        }
+      } else if (payData?.status === 'failed' || payData?.status === 'abandoned') {
+        await txn.update({ status: 'failed' });
+        console.log(`[Reconcile] Marked as failed: ${txn.reference}`);
+      }
+    } catch (err) {
+      console.error(`[Reconcile] Could not verify ${txn.reference}:`, err.message);
+    }
+  }
+
+  return { checked: stale.length };
+};
+
+module.exports = { initiatePayment, completeBookingPayment, listPayments, adminListPayments, adminPaymentStats, paystackWebhook, reconcilePendingWalletTransactions };
